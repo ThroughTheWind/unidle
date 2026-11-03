@@ -10,6 +10,10 @@ use crate::adapter::NudgeKey;
 use crate::nudge::{DEFAULT_INTERVAL, MAX_INTERVAL, MIN_INTERVAL, NudgeConfig, NudgeMethod};
 use crate::platform::PowerOptions;
 
+/// The window's ON/OFF button designs (design system). The first is the
+/// default.
+pub const BUTTON_STYLES: [&str; 4] = ["halo", "orbit", "pulse", "eye"];
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
@@ -35,6 +39,8 @@ pub struct Settings {
     pub notify_on_change: bool,
     /// The one-time "still running in the tray" notice was shown (FR-12).
     pub tray_notice_shown: bool,
+    /// One of [`BUTTON_STYLES`].
+    pub button_style: String,
 }
 
 impl Default for Settings {
@@ -51,6 +57,7 @@ impl Default for Settings {
             global_shortcut: None,
             notify_on_change: false,
             tray_notice_shown: false,
+            button_style: BUTTON_STYLES[0].to_string(),
         }
     }
 }
@@ -109,6 +116,10 @@ impl Settings {
             }),
             notify_on_change: read.bool("notifyOnChange", defaults.notify_on_change),
             tray_notice_shown: read.bool("trayNoticeShown", defaults.tray_notice_shown),
+            button_style: read.parse("buttonStyle", defaults.button_style.clone(), |value| {
+                let style = value.as_str()?;
+                BUTTON_STYLES.contains(&style).then(|| style.to_string())
+            }),
         };
         (settings, fallbacks)
     }
@@ -198,6 +209,7 @@ mod tests {
             global_shortcut: Some("Ctrl+Alt+A".into()),
             notify_on_change: true,
             tray_notice_shown: true,
+            button_style: "eye".into(),
         };
         let (read, fallbacks) = Settings::from_json(&settings.to_json());
         assert_eq!(read, settings);
@@ -225,7 +237,8 @@ mod tests {
                 "nudgeKey": "Alt+F4",
                 "nudgeIntervalSecs": 5,
                 "keepDisplayOn": false,
-                "globalShortcut": 42
+                "globalShortcut": 42,
+                "buttonStyle": "sparkles"
             }"#,
         );
         assert_eq!(
@@ -242,7 +255,8 @@ mod tests {
                 "nudgeMethod",
                 "nudgeKey",
                 "nudgeIntervalSecs",
-                "globalShortcut"
+                "globalShortcut",
+                "buttonStyle"
             ]
         );
     }
@@ -287,5 +301,6 @@ mod tests {
         assert!(!settings.restore_last_state);
         assert_eq!(settings.global_shortcut, None);
         assert!(!settings.notify_on_change);
+        assert_eq!(settings.button_style, "halo");
     }
 }
