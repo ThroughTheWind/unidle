@@ -182,15 +182,27 @@ mod input {
     use x11rb::protocol::xtest::{self, ConnectionExt as _};
     use x11rb::rust_connection::RustConnection;
 
-    use crate::adapter::{AdapterError, InputUnavailable};
+    use crate::adapter::{AdapterError, InputUnavailable, NudgeKey};
 
-    const XK_F15: u32 = 0xFFCC;
     const XK_SHIFT_L: u32 = 0xFFE1;
+
+    fn keysym(key: NudgeKey) -> u32 {
+        match key {
+            NudgeKey::F13 => 0xFFCA,
+            NudgeKey::F15 => 0xFFCC,
+            NudgeKey::F16 => 0xFFCD,
+            NudgeKey::F17 => 0xFFCE,
+            NudgeKey::F18 => 0xFFCF,
+            NudgeKey::F19 => 0xFFD0,
+            NudgeKey::F20 => 0xFFD1,
+            NudgeKey::Shift => XK_SHIFT_L,
+        }
+    }
 
     struct X11 {
         conn: RustConnection,
         root: Window,
-        key: Keycode,
+        shift: Keycode,
         has_idle_timer: bool,
     }
 
@@ -240,11 +252,12 @@ mod input {
             Ok(())
         }
 
-        /// F15 down and up, or Shift if the keyboard map has no F15.
-        pub fn nudge_key(&mut self) -> Result<(), AdapterError> {
+        /// The key down and up, or Shift if the keyboard map lacks the key.
+        pub fn nudge_key(&mut self, key: NudgeKey) -> Result<(), AdapterError> {
             let x11 = self.x11()?;
-            fake(x11, KEY_PRESS_EVENT, x11.key, 0, 0)?;
-            fake(x11, KEY_RELEASE_EVENT, x11.key, 0, 0)
+            let code = keycode_for(&x11.conn, keysym(key)).unwrap_or(x11.shift);
+            fake(x11, KEY_PRESS_EVENT, code, 0, 0)?;
+            fake(x11, KEY_RELEASE_EVENT, code, 0, 0)
         }
 
         pub fn idle_time(&mut self) -> Option<Duration> {
@@ -286,13 +299,11 @@ mod input {
         }
         let has_idle_timer = has(x11rb::protocol::screensaver::X11_EXTENSION_NAME);
         let root = conn.setup().roots[screen].root;
-        let key = keycode_for(&conn, XK_F15)
-            .or_else(|| keycode_for(&conn, XK_SHIFT_L))
-            .ok_or(InputUnavailable::Unsupported)?;
+        let shift = keycode_for(&conn, XK_SHIFT_L).ok_or(InputUnavailable::Unsupported)?;
         Ok(X11 {
             conn,
             root,
-            key,
+            shift,
             has_idle_timer,
         })
     }

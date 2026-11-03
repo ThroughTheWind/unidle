@@ -11,7 +11,7 @@ use std::ffi::{CString, c_char, c_void};
 use std::time::Duration;
 
 use super::{PowerOptions, REASON};
-use crate::adapter::{AdapterError, InputUnavailable};
+use crate::adapter::{AdapterError, InputUnavailable, NudgeKey};
 
 pub(super) type CFStringRef = *const c_void;
 type IOPMAssertionID = u32;
@@ -134,6 +134,27 @@ const K_CG_EVENT_SOURCE_STATE_HID_SYSTEM: i32 = 1;
 const K_CG_ANY_INPUT_EVENT_TYPE: u32 = !0;
 const K_VK_SHIFT: u16 = 0x38;
 
+/// Virtual key codes from `HIToolbox/Events.h`.
+fn keycode(key: NudgeKey) -> u16 {
+    match key {
+        NudgeKey::F13 => 0x69,
+        NudgeKey::F15 => 0x71,
+        NudgeKey::F16 => 0x6A,
+        NudgeKey::F17 => 0x40,
+        NudgeKey::F18 => 0x4F,
+        NudgeKey::F19 => 0x50,
+        NudgeKey::F20 => 0x5A,
+        NudgeKey::Shift => K_VK_SHIFT,
+    }
+}
+
+fn key_event(code: u16, down: bool) -> Result<Event, AdapterError> {
+    Event::new(
+        unsafe { CGEventCreateKeyboardEvent(std::ptr::null(), code, down) },
+        "CGEventCreateKeyboardEvent",
+    )
+}
+
 #[link(name = "CoreGraphics", kind = "framework")]
 unsafe extern "C" {
     fn CGEventCreate(source: *const c_void) -> CGEventRef;
@@ -220,10 +241,7 @@ fn mouse_moved(to: CGPoint) -> Result<Event, AdapterError> {
 }
 
 fn shift(down: bool) -> Result<Event, AdapterError> {
-    let event = Event::new(
-        unsafe { CGEventCreateKeyboardEvent(std::ptr::null(), K_VK_SHIFT, down) },
-        "CGEventCreateKeyboardEvent",
-    )?;
+    let event = key_event(K_VK_SHIFT, down)?;
     // A modifier on its own is a flags change, not a key press.
     unsafe {
         CGEventSetType(event.0, K_CG_EVENT_FLAGS_CHANGED);
@@ -264,11 +282,18 @@ impl Input {
         Ok(())
     }
 
-    /// A Shift tap: no character and no default action. F15 is avoided here
-    /// because macOS maps it to display brightness on some keyboards.
-    pub fn nudge_key(&mut self) -> Result<(), AdapterError> {
-        let down = shift(true)?;
-        let up = shift(false)?;
+    /// A Shift tap by default: no character and no default action. F15 is
+    /// refused upstream because macOS maps it to display brightness on some
+    /// keyboards (`NudgeKey::is_safe_here`).
+    pub fn nudge_key(&mut self, key: NudgeKey) -> Result<(), AdapterError> {
+        let (down, up) = if key == NudgeKey::Shift {
+            (shift(true)?, shift(false)?)
+        } else {
+            (
+                key_event(keycode(key), true)?,
+                key_event(keycode(key), false)?,
+            )
+        };
         down.post();
         up.post();
         Ok(())

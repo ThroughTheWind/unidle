@@ -5,16 +5,12 @@
 //! while the app sits in the tray (F-002). Opening it again builds a fresh
 //! one from the window config.
 
-use std::path::PathBuf;
-
 use tauri::{AppHandle, Manager, WebviewWindow, WebviewWindowBuilder};
 use tauri_plugin_notification::NotificationExt;
 
 use crate::strings;
 
 pub const MAIN: &str = "main";
-/// Exists once the "still running in the tray" notice has been shown.
-const NOTICE_MARKER: &str = "tray-notice-shown";
 
 pub fn show(app: &AppHandle) {
     let window = match app.get_webview_window(MAIN) {
@@ -44,10 +40,7 @@ fn build(app: &AppHandle) -> Option<WebviewWindow> {
 /// Called when the main window has been destroyed by closing it. The first
 /// time ever, says that the app is still running (SPEC FR-12).
 pub fn on_closed(app: &AppHandle) {
-    let Some(marker) = notice_marker(app) else {
-        return;
-    };
-    if marker.exists() {
+    if app.state::<crate::App>().settings().tray_notice_shown {
         return;
     }
     let shown = app
@@ -57,16 +50,6 @@ pub fn on_closed(app: &AppHandle) {
         .body(strings::STILL_RUNNING_BODY)
         .show();
     if shown.is_ok() {
-        if let Some(dir) = marker.parent() {
-            let _ = std::fs::create_dir_all(dir);
-        }
-        let _ = std::fs::write(&marker, b"");
+        crate::settings::record(app, |settings| settings.tray_notice_shown = true);
     }
-}
-
-fn notice_marker(app: &AppHandle) -> Option<PathBuf> {
-    app.path()
-        .app_config_dir()
-        .ok()
-        .map(|dir| dir.join(NOTICE_MARKER))
 }

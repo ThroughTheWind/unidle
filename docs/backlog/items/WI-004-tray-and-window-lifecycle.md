@@ -64,6 +64,7 @@ The app is meant to live in the tray (SPEC FR-2, FR-4, FR-12, FR-13), and the sk
 ## Execution
 
 - Branch `feature/WI-004-tray-and-window`, stacked on WI-002's branch.
+- WI-005 replaced the marker file with the `trayNoticeShown` setting before either shipped.
 - The tray images are drawn as SVG in the same pulse glyph as the app icon and rendered to 32 px PNGs. The SVG sources sit beside them.
 
 ## Review
