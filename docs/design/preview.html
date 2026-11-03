@@ -1,58 +1,8 @@
 <!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Unidle preview</title>
-<link rel="stylesheet" href="tokens.css">
-<style>
-*{box-sizing:border-box}
-body{margin:0;background:var(--color-bg);color:var(--color-text);font:var(--text-body)/var(--lh-normal) var(--font-sans);padding:var(--space-6) var(--space-4)}
-h1{font-size:var(--text-title);font-weight:var(--weight-semibold);margin:0 0 var(--space-5)}
-.row{display:flex;flex-wrap:wrap;gap:var(--space-5);align-items:flex-start}
-.win{width:var(--window-width);height:var(--window-height);background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);padding:var(--space-5);display:flex;flex-direction:column}
-.hdr{display:flex;justify-content:space-between;align-items:center;font-size:var(--text-label);font-weight:var(--weight-medium)}
-.ib{width:32px;height:32px;border-radius:var(--radius-md);display:grid;place-items:center;color:var(--color-text-muted);border:0;background:none;font-size:18px}
-.hero{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--space-3)}
-.sw{width:var(--toggle-width);height:var(--toggle-height);border-radius:var(--radius-full);background:var(--color-toggle-off-track);box-shadow:inset 0 0 0 1.5px var(--color-toggle-off-border);border:0;position:relative;cursor:pointer;transition:background var(--duration-base) var(--ease-standard)}
-.sw::after{content:"";position:absolute;top:4px;left:4px;width:var(--toggle-thumb);height:var(--toggle-thumb);border-radius:50%;background:var(--color-toggle-off-thumb);box-shadow:var(--shadow-thumb);transition:transform var(--duration-base) var(--ease-standard),background var(--duration-base)}
-.sw[aria-checked=true]{background:var(--color-toggle-on-track);box-shadow:none}
-.sw[aria-checked=true]::after{transform:translateX(40px);background:var(--color-toggle-on-thumb)}
-.sw:focus-visible{outline:2px solid var(--color-focus);outline-offset:3px}
-.sw.sched{outline:2px solid var(--color-status-scheduled);outline-offset:2px}
-.state{font-size:var(--text-display);font-weight:var(--weight-semibold);line-height:var(--lh-tight)}
-.off .state{color:var(--color-text-muted)}
-.status{display:flex;align-items:center;gap:var(--space-2);text-align:center}
-.dot{width:8px;height:8px;border-radius:50%;background:currentColor;flex:none}
-.on .status{color:var(--color-status-active)} .on .dot{animation:pulse var(--duration-pulse) infinite}
-.off .status{color:var(--color-status-idle)} .err .status{color:var(--color-status-error)} .sch .status{color:var(--color-status-scheduled)}
-.timer{font:var(--text-caption) var(--font-mono);color:var(--color-text-muted)}
-.slot{border:1px dashed var(--color-border);border-radius:var(--radius-lg);padding:var(--space-3) var(--space-4);color:var(--color-text-muted);font-size:var(--text-caption)}
-.ftr{display:flex;justify-content:space-between;margin-top:var(--space-3);font-size:var(--text-caption);color:var(--color-text-muted)}
-@keyframes pulse{50%{opacity:.35}}
-@media (prefers-reduced-motion:reduce){.on .dot{animation:none}}
-.lbl{font-size:var(--text-caption);color:var(--color-text-muted);margin:0 0 var(--space-2)}
-.sw-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:var(--space-2);max-width:760px;margin-top:var(--space-6)}
-.chip{border-radius:var(--radius-md);border:1px solid var(--color-border);overflow:hidden;font-size:var(--text-caption);background:var(--color-surface)}
-.chip i{display:block;height:40px}.chip span{display:block;padding:var(--space-2)}
-</style>
-</head>
-<body>
-<h1>Unidle · design preview</h1>
-<div class="row">
- <div><p class="lbl">Off</p><div class="win off"><div class="hdr">Unidle<button class="ib" aria-label="Settings">⚙</button></div>
-  <div class="hero"><button class="sw" role="switch" aria-checked="false" aria-label="Simulate activity"></button><div class="state">Off</div>
-  <div class="status"><span class="dot"></span>Stopped</div></div>
-  <div class="slot">Schedule (coming soon)</div><div class="ftr"><span>v0.1.0</span><span>GitHub</span></div></div></div>
- <div><p class="lbl">On</p><div class="win on"><div class="hdr">Unidle<button class="ib" aria-label="Settings">⚙</button></div>
-  <div class="hero"><button class="sw" role="switch" aria-checked="true" aria-label="Simulate activity"></button><div class="state">On</div>
-  <div class="status"><span class="dot"></span>Keeping your computer awake</div><div class="timer">00:42:17</div></div>
-  <div class="slot">Schedule (coming soon)</div><div class="ftr"><span>v0.1.0</span><span>GitHub</span></div></div></div>
- <div><p class="lbl">Error / Scheduled (future)</p><div class="win err" style="height:auto"><div class="hero" style="padding:var(--space-4) 0"><button class="sw" role="switch" aria-checked="false" aria-label="Simulate activity"></button><div class="state" style="color:var(--color-text-muted)">Off</div><div class="status">▲ Couldn't start: permission needed</div></div></div>
-  <div class="win sch" style="height:auto;margin-top:var(--space-4)"><div class="hero" style="padding:var(--space-4) 0"><button class="sw sched" role="switch" aria-checked="false" aria-label="Simulate activity"></button><div class="state" style="color:var(--color-text-muted)">Off</div><div class="status">◷ Starts at 09:00</div></div></div></div>
-</div>
-<div class="sw-grid" id="sw"></div>
-<script>
-document.querySelectorAll('.sw').forEach(b=>b.addEventListener('click',()=>{if(b.closest('.err,.sch'))return;const on=b.getAttribute('aria-checked')!=='true';b.setAttribute('aria-checked',on);const w=b.closest('.win');w.className='win '+(on?'on':'off');w.querySelector('.state').textContent=on?'On':'Off';w.querySelector('.status').innerHTML='<span class="dot"></span>'+(on?'Keeping your computer awake':'Stopped');const t=w.querySelector('.timer');if(t)t.style.display=on?'':'none';else if(on)w.querySelector('.status').insertAdjacentHTML('afterend','<div class="timer">00:00:00</div>')}));
-const s=getComputedStyle(document.documentElement);['bg','surface','surface-muted','border','text','text-muted','focus','toggle-on-track','toggle-off-border','status-active','status-idle','status-scheduled','status-warning','status-error'].forEach(n=>{document.getElementById('sw').insertAdjacentHTML('beforeend',`<div class="chip"><i style="background:var(--color-${n})"></i><span>${n}<br>${s.getPropertyValue('--color-'+n).trim()}</span></div>`)});
-</script>
-</body></html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Unidle preview</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="tokens.css"><link rel="stylesheet" href="power-button.css">
+<style>body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-sans);padding:32px 16px}h1{font-size:24px;letter-spacing:-.02em;margin:0 0 4px}p{color:var(--text-muted);margin:0 0 24px}.g{display:flex;flex-wrap:wrap;gap:24px}.g>div{display:flex;flex-direction:column;gap:8px}</style></head>
+<body><h1>Unidle · power button styles</h1><p>Reference markup. Click any button. Halo is the default; the others are user-selectable in Settings.</p>
+<div class="g"><div><span class="as-caption">Halo (default)</span><div class="ub-window is-on"><div class="ub-bar">Unidle<span style="color:var(--text-muted)">⚙</span></div><div class="ub-stage"><button class="ub-power" data-style="halo" role="switch" aria-checked="true" aria-label="Keep computer awake"><svg class="ub-glyph" width="56" height="56" viewBox="0 0 24 24"><path d="M12 3v8"/><path d="M6.3 7.2a8 8 0 1 0 11.4 0"/></svg></button></div><div class="ub-meta"><span class="ub-state">On</span><span class="ub-timer">00:42:17</span></div><div class="ub-slot">Schedule (coming soon)</div></div></div><div><span class="as-caption">Orbit</span><div class="ub-window is-on"><div class="ub-bar">Unidle<span style="color:var(--text-muted)">⚙</span></div><div class="ub-stage"><button class="ub-power" data-style="orbit" role="switch" aria-checked="true" aria-label="Keep computer awake"><svg class="ub-ring" viewBox="0 0 196 196"><circle class="ub-track" cx="98" cy="98" r="94"/><circle class="ub-comet" cx="98" cy="98" r="94"/></svg><span class="ub-sat"></span><span class="ub-core"><svg class="ub-glyph" width="48" height="48" viewBox="0 0 24 24"><path d="M12 3v8"/><path d="M6.3 7.2a8 8 0 1 0 11.4 0"/></svg><span class="ub-readout"><b class="ub-clock">00:42:17</b><small>awake</small></span></span></button></div><div class="ub-meta"><span class="ub-state">On</span><span class="ub-timer">Keeping your computer awake</span></div><div class="ub-slot">Schedule (coming soon)</div></div></div><div><span class="as-caption">Pulse</span><div class="ub-window"><div class="ub-bar">Unidle<span style="color:var(--text-muted)">⚙</span></div><div class="ub-stage"><button class="ub-power" data-style="pulse" role="switch" aria-checked="false" aria-label="Keep computer awake"><svg class="ub-ecg" viewBox="0 0 110 44"><path class="ub-base" d="M0 22h28l6-12 8 26 7-30 7 22 5-6h49"/><path d="M0 22h28l6-12 8 26 7-30 7 22 5-6h49"/></svg><span class="ub-knob"><svg class="ub-glyph" width="36" height="36" viewBox="0 0 24 24"><path d="M12 3v8"/><path d="M6.3 7.2a8 8 0 1 0 11.4 0"/></svg></span></button></div><div class="ub-meta"><span class="ub-state">Off</span><span class="ub-timer">Click to keep awake</span></div><div class="ub-slot">Schedule (coming soon)</div></div></div><div><span class="as-caption">Wake eye</span><div class="ub-window"><div class="ub-bar">Unidle<span style="color:var(--text-muted)">⚙</span></div><div class="ub-stage"><button class="ub-power" data-style="eye" role="switch" aria-checked="false" aria-label="Keep computer awake"><svg viewBox="0 0 104 104"><g class="ub-open"><path class="ub-white" d="M10 52C24 30 80 30 94 52C80 74 24 74 10 52Z"/><g class="ub-look"><circle class="ub-pupil" cx="52" cy="52" r="13"/></g><path class="ub-lid" d="M10 52C24 30 80 30 94 52C80 74 24 74 10 52Z"/></g><text class="ub-z" x="74" y="34">z</text><text class="ub-z ub-z2" x="86" y="22">z</text></svg></button></div><div class="ub-meta"><span class="ub-state">Asleep</span><span class="ub-timer">Click to wake</span></div><div class="ub-slot">Schedule (coming soon)</div></div></div></div>
+<script>document.querySelectorAll('.ub-power').forEach(function(b){b.addEventListener('click',function(){var on=b.getAttribute('aria-checked')!=='true';b.setAttribute('aria-checked',on);var w=b.closest('.ub-window');if(!w)return;w.classList.toggle('is-on',on);var eye=b.dataset.style==='eye';w.querySelector('.ub-state').textContent=on?(eye?'Awake':'On'):(eye?'Asleep':'Off');w.querySelector('.ub-timer').textContent=on?(b.dataset.style==='orbit'?'Keeping your computer awake':'00:42:17'):(eye?'Click to wake':'Click to keep awake')})});</script></body></html>

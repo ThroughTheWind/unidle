@@ -8,32 +8,120 @@
     <script type="module" src="./src/main.ts"></script>
   </head>
   <body>
-    <header class="header">
-      <h1 id="app-name"></h1>
-    </header>
+    <div id="window" class="ub-window">
+      <header class="ub-bar">
+        <button id="back" class="as-ibtn bar-back" type="button" hidden>
+          <span>
+            <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M15 5l-7 7 7 7" />
+            </svg>
+          </span>
+        </button>
+        <h1 id="title" class="bar-title"></h1>
+        <button id="open-settings" class="as-ibtn" type="button">
+          <span>
+            <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="3" />
+              <path
+                d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"
+              />
+            </svg>
+          </span>
+        </button>
+      </header>
 
-    <main class="hero">
-      <button id="toggle" class="toggle" type="button" role="switch" aria-checked="false">
-        <span class="toggle-thumb"></span>
-      </button>
-      <p id="state" class="state"></p>
-      <p class="status" role="status">
-        <span id="status-dot" class="status-dot"></span>
-        <span id="status-text"></span>
-        <span id="status-timer" class="status-timer"></span>
-      </p>
-      <p id="notice" class="notice" hidden>
-        <span id="notice-text"></span>
-        <button id="notice-action" class="link-button" type="button" hidden></button>
-      </p>
-    </main>
+      <main id="main-view" class="view main-view">
+        <div class="ub-stage">
+          <button id="power" class="ub-power" type="button" role="switch" aria-checked="false"></button>
+        </div>
+        <div class="ub-meta">
+          <span id="state" class="ub-state"></span>
+          <span id="timer" class="ub-timer"></span>
+        </div>
+        <p id="status" class="as-status status-line" role="status" hidden>
+          <span class="dot"></span>
+          <span id="status-text"></span>
+        </p>
+        <button id="status-action" class="as-btn ghost status-action" type="button" hidden></button>
+        <div id="schedule" class="ub-slot"></div>
+      </main>
 
-    <section class="card">
-      <p id="schedule"></p>
-    </section>
+      <section id="settings-view" class="view settings" hidden>
+        <div class="settings-scroll">
+          <section class="group">
+            <h2 id="h-appearance" class="group-title"></h2>
+            <div class="field">
+              <span id="l-style" class="field-label"></span>
+              <div id="style-picker" class="as-seg seg" role="radiogroup" aria-labelledby="l-style"></div>
+            </div>
+          </section>
 
-    <footer class="footer">
-      <span id="version"></span>
-    </footer>
+          <section class="group">
+            <h2 id="h-activity" class="group-title"></h2>
+            <label class="row">
+              <span class="row-text">
+                <span id="l-nudge" class="row-label"></span>
+                <span id="d-nudge" class="row-hint"></span>
+              </span>
+              <input id="nudge-enabled" class="switch" type="checkbox" role="switch" />
+            </label>
+            <div class="field" data-needs-nudge>
+              <span id="l-method" class="field-label"></span>
+              <div id="method-picker" class="as-seg seg" role="radiogroup" aria-labelledby="l-method"></div>
+            </div>
+            <label class="row" data-needs-nudge data-needs-key>
+              <span id="l-key" class="row-label"></span>
+              <select id="nudge-key" class="input"></select>
+            </label>
+            <label class="row" data-needs-nudge>
+              <span class="row-text">
+                <span id="l-interval" class="row-label"></span>
+                <span id="d-interval" class="row-hint"></span>
+              </span>
+              <span class="input-with-unit">
+                <input id="nudge-interval" class="input input-number" type="number" min="10" max="600" step="1" />
+                <span id="u-interval" class="unit"></span>
+              </span>
+            </label>
+          </section>
+
+          <section class="group">
+            <h2 id="h-system" class="group-title"></h2>
+            <label class="row">
+              <span id="l-display" class="row-label"></span>
+              <input id="keep-display-on" class="switch" type="checkbox" role="switch" />
+            </label>
+            <label class="row">
+              <span id="l-login" class="row-label"></span>
+              <input id="launch-at-login" class="switch" type="checkbox" role="switch" />
+            </label>
+            <label class="row">
+              <span id="l-restore" class="row-label"></span>
+              <input id="restore-last-state" class="switch" type="checkbox" role="switch" />
+            </label>
+            <label class="row">
+              <span id="l-notify" class="row-label"></span>
+              <input id="notify-on-change" class="switch" type="checkbox" role="switch" />
+            </label>
+            <div class="row">
+              <span class="row-text">
+                <span id="l-shortcut" class="row-label"></span>
+                <span id="d-shortcut" class="row-hint"></span>
+              </span>
+              <span class="shortcut">
+                <button id="shortcut-record" class="as-btn secondary shortcut-key" type="button"></button>
+                <button id="shortcut-clear" class="as-btn ghost" type="button"></button>
+              </span>
+            </div>
+          </section>
+
+          <p id="version" class="version"></p>
+        </div>
+        <p id="settings-error" class="as-status error" role="alert" hidden>
+          <span class="dot"></span>
+          <span id="settings-error-text"></span>
+        </p>
+      </section>
+    </div>
   </body>
 </html>

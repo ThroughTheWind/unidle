@@ -1,153 +1,129 @@
 # Unidle Design System
 
-A deliberately tiny system for a single-purpose desktop utility: one window, one big ON/OFF toggle, a status line, and a tray icon. Stack-agnostic. Tokens live in [`tokens.json`](./tokens.json) (W3C Design Tokens format) and are mirrored as CSS variables in [`tokens.css`](./tokens.css). A visual reference is in [`preview.html`](./preview.html).
+The design system for Unidle, a single-purpose open-source desktop app: one window and one big power button that keeps the computer awake. The finish is premium but quiet: graphite neutrals tinted slightly green, light and depth on the main control, a single green accent, and the Geist typeface.
+
+Files in this folder:
+
+| File | What |
+|---|---|
+| `tokens.json` | All tokens, W3C Design Tokens format (source of truth) |
+| `tokens.css` | The same tokens as CSS variables, light/dark by `prefers-color-scheme` or `data-theme` |
+| `power-button.css` | The four power button styles, the window shell and small supporting components |
+| `preview.html` | Reference markup for all four styles in the window (open it next to the two CSS files) |
+| `proposals/unidle-button-proposals.html` | The original exploration page |
 
 ## Principles
 
-1. **One glance, one action.** The state (ON or OFF) must be readable from across the room. The toggle is the hero; everything else is secondary.
-2. **Native-feeling, not branded.** System fonts, quiet neutrals, follows the OS light/dark setting. It should sit politely next to Finder, Explorer or GNOME apps.
-3. **Never ambiguous.** State is conveyed by position, color *and* text, never color alone.
-4. **Room to grow.** Layout reserves a slot below the toggle for future scheduling, without redesigning the main view.
+1. **One glance, one action.** The power button is the window. Its state reads from across the room.
+2. **Premium, not loud.** Depth comes from light (a soft top-left highlight, inner shadow, one glow when on), not from many colors.
+3. **Never ambiguous.** State is shown by fill, motion *and* a word ("On" / "Off"), never color alone.
+4. **Personal.** The user picks one of four button styles. Halo is the default.
+5. **Room to grow.** A reserved slot under the button holds future scheduling.
 
 ## Color
 
-Semantic tokens per theme (`color.light.*`, `color.dark.*`). Components only use semantic tokens, never palette values.
+Token names are the same in `tokens.json` (`color.light.*`, `color.dark.*`) and `tokens.css` (`--<name>`). Dark is the hero theme; both are fully designed.
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| `bg` | #F6F7F9 | #0E0F12 | Window background |
-| `surface` | #FFFFFF | #14161A | Cards, panels |
-| `surface-muted` | #ECEEF2 | #1B1E24 | Inputs, secondary panels |
-| `border` | #D9DDE4 | #23272E | Dividers, outlines |
-| `text` | #14161A | #F6F7F9 | Primary text |
-| `text-muted` | #5F6672 | #9AA2AF | Secondary text, hints |
+| `bg` | #EEF1F0 | #07090A | Behind the window, page ground |
+| `surface` | #FBFCFB | #111614 | Window, top of its gradient |
+| `surface-sunken` | #F1F4F3 | #0B0F0E | Window, bottom of its gradient; inputs |
+| `border` | #D5DBD8 | #1C2321 | Hairlines and 1px rings (decorative) |
+| `text` | #0F1513 | #EEF3F1 | Primary text |
+| `text-muted` | #5A6561 | #93A09B | Secondary text, state word when off |
 | `focus` | #2563C9 | #6AA8FF | Focus ring |
-| `toggle-on-track` | #0B7A4B | #16A86A | Toggle ON |
-| `toggle-off-track` | #D9DDE4 | #23272E | Toggle OFF |
-| `toggle-off-border` | #5F6672 | #9AA2AF | 1.5 px OFF track outline (gives the OFF switch 3:1 contrast) |
-| `on-accent` | #FFFFFF | #0E0F12 | Text/icons on the green accent (dark text in dark mode) |
-| `status-active` | #0B7A4B | #5EE0A0 | "Running" dot/text |
-| `status-idle` | #5F6672 | #9AA2AF | "Stopped" |
-| `status-scheduled` | #2563C9 | #6AA8FF | Reserved: scheduled-but-waiting |
-| `status-warning` | #9A6200 | #F5B13D | e.g. missing OS permission |
-| `status-error` | #C8372B | #F27466 | Simulation failed |
+| `power-on` | #08774F | #17B47A | Brand green: ON fill (gradient end), state word when on |
+| `power-on-hi` | #14A06C | #34D697 | ON fill gradient start (top-left) |
+| `power-glow` | #1FD592 | #3EF0A8 | Glow, ripples, orbit comet, window bloom. Never text |
+| `power-off-face` | #E6EAE8 | #1A211F | Button face when off |
+| `power-off-ink` | #5A6561 | #93A09B | Glyph on the off face |
+| `on-accent` | #FFFFFF | #04110B | Glyph/text on green fills |
+| `status-active` | #08774F | #5EE0A0 | Running |
+| `status-idle` | #5A6561 | #93A09B | Stopped |
+| `status-scheduled` | #2563C9 | #6AA8FF | Reserved for scheduling; never for ON |
+| `status-warning` | #8F5C00 | #F5B13D | Needs attention (e.g. OS permission) |
+| `status-error` | #C8372B | #F27466 | Failed |
 
-Green means "keeping awake". Blue is reserved for the future scheduled state so it never collides with ON.
-
-Checked contrast: all text tokens meet WCAG AA (4.5:1+) on `bg` and `surface` in both themes; the ON track (≥5:1) and OFF track outline (≥5:1) meet the 3:1 non-text rule; `on-accent` on the green accent is 5.4:1 (light) and 6.3:1 (dark).
+Contrast (checked): every text token is 4.5:1 or better on `bg`, `surface` and `power-off-face` in both themes. `on-accent` on `power-on` is 5.0:1 (light) and 7.2:1 (dark). The glyph on `power-on-hi` is above 3:1.
 
 ## Typography
 
-System stack (`system-ui`, Segoe UI, SF, Roboto, Ubuntu, Cantarell). No bundled fonts.
+**Geist** for UI and **Geist Mono** for the timer. Both are open source (SIL OFL 1.1) and must be **bundled with the app** (woff2 or ttf from the Geist release) so it works offline and looks the same on every OS. Fallback: the system UI stack.
 
-| Style | Size / weight | Use |
+| Style | Size / weight / tracking | Use |
 |---|---|---|
-| `display` | 28 / 600 | State word ("On" / "Off") |
+| `display` | 28 / 600 / -0.02em | Large titles |
 | `title` | 20 / 600 | Settings section titles |
-| `label` | 15 / 500 | Control labels |
-| `body` | 14 / 400 | Body, status line |
-| `caption` | 12 / 400 | Hints, version, elapsed time (mono for timers) |
+| `label` | 15 / 600 | Window title, labels |
+| `state` | 13 / 600 / 0.16em, uppercase | "ON" / "OFF" under the button |
+| `body` | 14 / 400 | Status and body text |
+| `caption` | 12 / 400 | Hints, version |
+| `timer` | Geist Mono 13 / 500, tabular | Elapsed time |
 
-## Spacing, radius, elevation, motion
+## Space, radius, depth, motion
 
-- **Spacing:** 4-pt scale: 4, 8, 12, 16, 24, 32, 48. Window padding is 24.
-- **Radius:** `sm` 6 (inputs, chips), `md` 10 (buttons), `lg` 14 (cards), `full` (toggle, dots).
-- **Shadow:** `card` for the main surface in light mode only; dark mode relies on surface contrast.
-- **Motion:** 180 ms, `cubic-bezier(0.2, 0, 0, 1)` for the toggle. The ON status dot pulses (2 s). Honor `prefers-reduced-motion` / OS setting: no slide, no pulse.
+- **Spacing:** 4, 8, 12, 16, 24, 32, 48. Window padding 20 × 22.
+- **Radius:** `sm` 6, `md` 10, `lg` 14, `window` 22, `full`.
+- **Shadows (per theme):** `shadow-window`, `shadow-face` (raised button face), `shadow-knob` (Pulse knob).
+- **Motion:** `fast` 120ms, `base` 180ms, `fill` 500ms, `breathe` 3.2s, `orbit` 2.6s; easing `standard` (0.2, 0, 0, 1) and `spring` (0.3, 1.4, 0.5, 1). With reduced motion, all loops stop and fills switch instantly.
 
 ## Layout
 
-Fixed small window, 360 × 420, not resizable (or min size).
+Window 360 × 420 (SPEC FR-11, F-001), `radius-window`, `surface` → `surface-sunken` gradient, `shadow-window`. While on, a soft `power-glow` bloom sits behind the button.
 
 ```
 ┌──────────────────────────────┐
-│  Unidle                  ⚙   │  header: app name + settings
+│ Unidle                    ⚙  │  title bar (label)
 │                              │
-│          ┌────────┐          │
-│          │ ●──────│          │  hero toggle (88×48)
-│          └────────┘          │
-│             On               │  display text
-│   ● Keeping your computer    │  status line
-│     awake · 00:42:17         │  caption (mono timer)
-│                              │
-│ ┌──────────────────────────┐ │
-│ │ Schedule (coming soon)   │ │  reserved slot: future scheduling
-│ └──────────────────────────┘ │
-│  v0.1.0              GitHub  │  footer caption
+│            ╭────╮            │
+│           │  ⏻   │           │  PowerButton, chosen style
+│            ╰────╯            │
+│              ON              │  state word
+│           00:42:17           │  timer (mono)
+│ ┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┐ │
+│ ╎ Schedule (coming soon)   ╎ │  reserved slot
+│ └╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┘ │
 └──────────────────────────────┘
 ```
 
-## Components
+## PowerButton
 
-### 1. Power toggle (hero)
+The only primary control. One markup contract, four styles:
 
-The only primary control. A switch, not a button: it reflects and changes state.
+```html
+<button class="ub-power" data-style="halo" role="switch" aria-checked="false"
+        aria-label="Keep computer awake"> …style parts (see preview.html)… </button>
+```
 
-| Part | Spec |
-|---|---|
-| Track | 88 × 48, radius `full` |
-| Thumb | 40 × 40, 4 px inset, `shadow.thumb` |
-| Hit area | Whole track plus the state label |
-| Label | `display` text under the toggle: "On" / "Off" |
+ON is `aria-checked="true"`. The window element gets `is-on` for the bloom.
 
-**States**
-
-| State | Track | Thumb | Label | Status line |
+| Style id | Name | Size | Off | On |
 |---|---|---|---|---|
-| Off | `toggle-off-track` + 1.5 px `toggle-off-border` | left, `toggle-off-thumb` | "Off" in `text-muted` | ○ "Stopped" (`status-idle`) |
-| On | `toggle-on-track` | right, `toggle-on-thumb` | "On" in `text` | ● "Keeping your computer awake · 00:42:17" (`status-active`, pulsing dot) |
-| Hover | Track 8% lighter (dark) / darker (light) | unchanged | | |
-| Pressed | Thumb widens to 46 px toward travel direction | | | |
-| Focus-visible | 2 px `focus` ring, 3 px offset | | | |
-| Starting / stopping | Thumb at destination, track at 60% opacity, input disabled ≤ 1 s | | | "Starting…" / "Stopping…" |
-| Error | Snaps back to Off | | "Off" | ▲ message in `status-error`, e.g. "Couldn't start: permission needed" |
-| Disabled | 40% opacity, `not-allowed` cursor | | | Reason in caption |
-| Scheduled *(future)* | `toggle-off-track` with 2 px `status-scheduled` outline | left | "Off" | ◷ "Starts at 09:00" (`status-scheduled`) |
+| `halo` | **Halo (default)** | 172 disc | Matte `power-off-face`, power glyph | Green gradient fill, slow 3.2s breathing glow, two ripple rings |
+| `orbit` | Orbit | 196 ring, 152 core | Matte core in a hairline ring | A glowing comet and dot circle the ring every 2.6s; the timer moves into the core |
+| `pulse` | Pulse | 236 × 104 switch | Knob left on a matte track | Knob springs right, track turns green, a heartbeat line traces through it |
+| `eye` | Wake eye | 176 squircle | Closed eye, drifting z's, state word "Asleep" | Becomes a disc, eye opens, glances around, blinks every 6s, "Awake" |
 
-**Accessibility:** `role="switch"`, `aria-checked`, accessible name "Simulate activity". Space/Enter toggles. Global shortcut suggestion: Ctrl/Cmd+Shift+A (owned by the specs thread).
+States for every style: off, on, hover (slight lift), pressed (scale 0.97), focus (2px `focus` ring, 8px offset), starting/stopping (destination look, input disabled ≤1s, "Starting…"), error (snaps back to off, StatusLine shows the error), disabled (40% opacity). Space and Enter toggle.
 
-### 2. Status line
+### Button style setting
 
-Dot (8 px, radius `full`) + `body` text + optional mono `caption` timer. Variants: idle, active, transitioning, warning, error, scheduled. Always includes text, never dot alone.
+Settings has a **Button style** segmented control (`role="radiogroup"`): Halo, Orbit, Pulse, Wake eye. Store the style id (`halo`, `orbit`, `pulse`, `eye`); a missing or unknown value falls back to `halo`. Changing it swaps the button instantly without changing the on/off state.
 
-### 3. Icon button
+## Supporting components
 
-32 × 32 visual, 44 × 44 hit target, radius `md`, `text-muted` icon, `surface-muted` background on hover. Used for settings ⚙ and close.
-
-### 4. Button
-
-For settings and dialogs only (never for the main ON/OFF).
-
-| Variant | Background | Text |
-|---|---|---|
-| Primary | `toggle-on-track` | `on-accent` |
-| Secondary | `surface-muted` | `text` |
-| Ghost | transparent | `text-muted` |
-
-Height 36, padding 0 16, radius `md`, `label` style.
-
-### 5. Card / section
-
-`surface`, `border` 1 px, radius `lg`, padding 16. Holds settings groups and the future schedule panel.
-
-### 6. Tray / menu bar icon
-
-16 px template icon (monochrome on macOS, auto-tinted). Two glyphs:
-
-- **Off:** outlined cursor/pulse glyph.
-- **On:** same glyph filled, plus a small dot badge (green on Windows/Linux; template-only on macOS).
-
-Tray menu: "Turn on/off" (with state checkmark), "Open window", separator, "Quit".
-
-### 7. Reserved: schedule components (future)
-
-Not built now, but tokens already cover them: time-range row (two `surface-muted` inputs, radius `sm`), weekday chips (32 px, radius `full`, selected = `status-scheduled` fill), and the scheduled toggle state above.
+- **StatusLine:** 8px dot or glyph plus text. Variants idle, active (with timer), starting, warning, error, scheduled. Always with text.
+- **Button:** 36 high, radius `md`. Primary = green gradient with `on-accent`; secondary = `power-off-face` with a `border` ring; ghost = `text-muted`. Never used for ON/OFF.
+- **IconButton:** 32 visual inside a 44 hit area, `text-muted`, `power-off-face` on hover, always with `aria-label`.
+- **Card:** `surface` → `surface-sunken`, 1px `border` ring, radius `lg`, padding 16.
+- **Tray icon:** 16px template glyph. Off: outlined power glyph. On: filled glyph (with Wake eye selected: closed/open eye).
 
 ## Voice
 
-Short, plain, present tense. "On" / "Off", "Keeping your computer awake", "Stopped". No jargon like "jiggler" or "daemon" in the UI.
+Short, plain, present tense. "On" / "Off", "Keeping your computer awake", "Stopped". No jargon in the UI.
 
 ## Using the tokens
 
-- **CSS / web-based stacks (Tauri, Electron, Wails):** import `tokens.css`; theme switches via `prefers-color-scheme` or `data-theme="light|dark"` on `<html>`.
-- **Native / other stacks:** read `tokens.json` directly, or generate platform outputs with [Style Dictionary](https://styledictionary.com/).
+- **Web-based stacks (Tauri, Electron, Wails):** load `tokens.css`, then `power-button.css`, and register the bundled Geist fonts with `@font-face`.
+- **Other stacks:** read `tokens.json`, or generate outputs with Style Dictionary.

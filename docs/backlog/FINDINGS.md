@@ -13,12 +13,13 @@ decision.** Recording one must cost almost nothing, or it will not happen — so
 
 | Id | Sev | Pri | What | Evidence | When to act | How to fix |
 | --- | --- | --- | --- | --- | --- | --- |
-| F-003 | medium | next | Turning ON fails silently in the window: the toggle stays OFF and nothing says why | Xvfb run without any D-Bus inhibitor, 2026-11-03: `set_active` returned an error and `ui/src/main.ts` drops the rejected promise | With the window UI work | Catch the error in the toggle handler and show it in the status line |
+| — | | | | | | |
 
 ## Closed
 
 | Id | What | Disposition | Reason |
 | --- | --- | --- | --- |
+| F-003 | Turning ON failed silently in the window | fixed | WI-007: a failed toggle snaps back and the status line shows the error |
 | F-001 | The spec and the design system disagreed on the main window size | fixed | Antoine chose 360×420 on 2026-11-03, and SPEC FR-11 now says so |
 | F-004 | Launching the app twice gave two tray icons and two controllers | fixed | `tauri-plugin-single-instance` is now the first plugin in `src-tauri/src/main.rs`, and a second launch shows the running app's window, on branch `fix/single-instance` |
 | F-002 | The app exceeded the 80 MB memory limit while its window was open | promoted | Antoine agreed on 2026-11-03 that the limit applies only while hidden in the tray, and SPEC NFR-1 now says so. WI-004 takes the required webview release when the window closes |

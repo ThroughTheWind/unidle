@@ -1,4 +1,24 @@
 @import "../../docs/design/tokens.css";
+@import "../../docs/design/power-button.css";
+
+/* Geist, bundled so the window looks the same offline on every OS. */
+@font-face {
+  font-family: "Geist";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: block;
+  src: url("../../node_modules/@fontsource-variable/geist/files/geist-latin-wght-normal.woff2")
+    format("woff2-variations");
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: block;
+  src: url("../../node_modules/@fontsource-variable/geist-mono/files/geist-mono-latin-wght-normal.woff2")
+    format("woff2-variations");
+}
 
 * {
   box-sizing: border-box;
@@ -11,151 +31,329 @@ body {
 }
 
 body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-  padding: var(--space-5);
   overflow: hidden;
-  background: var(--color-bg);
-  color: var(--color-text);
+  background: var(--surface-sunken);
+  color: var(--text);
   font-family: var(--font-sans);
   font-size: var(--text-body);
   line-height: var(--lh-normal);
   user-select: none;
+  -webkit-font-smoothing: antialiased;
 }
 
-.header h1 {
+[hidden] {
+  display: none !important;
+}
+
+/* The OS window is the design's window frame, so the shell fills it. */
+.ub-window {
+  width: 100vw;
+  height: 100vh;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.ub-window.in-settings::before {
+  opacity: 0;
+}
+
+.ub-bar {
+  gap: var(--space-2);
+  /* The 44px hit areas overhang the padding instead of growing the bar. */
+  margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-3)) 0;
+}
+
+.bar-title {
+  flex: 1;
+  padding-left: var(--space-3);
   font-size: var(--text-label);
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.01em;
+}
+
+.bar-back + .bar-title {
+  padding-left: 0;
+}
+
+.as-ibtn svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ── Main view ─────────────────────────────────────────────────────────── */
+
+.view {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Hover lifts and press sinks for every style (design system: states). */
+.ub-power {
+  transition:
+    transform var(--duration-fast) var(--ease-standard),
+    background var(--duration-fill),
+    color var(--duration-base);
+}
+
+.ub-power:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.ub-power:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* Starting or stopping: the destination look, without taking input. */
+.ub-power[aria-busy="true"] {
+  cursor: progress;
+}
+
+.status-line {
+  justify-content: center;
+  margin-top: var(--space-2);
+  font-size: var(--text-caption);
+  text-align: left;
+}
+
+/* OS errors can be long: two lines here, the rest on hover. */
+#status-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.status-line .dot {
+  align-self: flex-start;
+  margin-top: 5px;
+}
+
+.status-action.as-btn {
+  align-self: center;
+  height: 28px;
+  color: var(--focus);
+  font-size: var(--text-caption);
+}
+
+/* ── Settings view ─────────────────────────────────────────────────────── */
+
+.settings {
+  margin-top: var(--space-3);
+}
+
+.settings-scroll {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  padding-bottom: var(--space-2);
+}
+
+.group + .group {
+  margin-top: var(--space-5);
+}
+
+.group-title {
+  margin-bottom: var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-state);
+  text-transform: uppercase;
+}
+
+.field,
+.row {
+  padding: var(--space-2) 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.field-label,
+.row-label {
+  font-size: var(--text-body);
   font-weight: var(--weight-medium);
 }
 
-.hero {
-  flex: 1;
+.row {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   gap: var(--space-3);
-  text-align: center;
+  min-height: var(--hit-target);
 }
 
-.toggle {
+label.row {
+  cursor: pointer;
+}
+
+.row-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.row-hint {
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  line-height: var(--lh-tight);
+}
+
+.is-disabled {
+  opacity: 0.4;
+}
+
+.is-disabled,
+.is-disabled * {
+  cursor: default;
+}
+
+/* Segmented control, built from buttons with radio semantics. */
+.seg {
+  display: flex;
+}
+
+.seg button {
+  all: unset;
+  flex: 1;
+  padding: 6px var(--space-2);
+  border-radius: 8px;
+  color: var(--text-muted);
+  text-align: center;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.seg button.sel {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow:
+    0 1px 2px #0000001f,
+    0 0 0 1px var(--border);
+}
+
+.seg button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.seg button:disabled {
+  cursor: default;
+}
+
+/* A small on/off switch for settings. Never used for the main ON/OFF. */
+.switch {
+  appearance: none;
   position: relative;
-  width: var(--toggle-width);
-  height: var(--toggle-height);
-  padding: 0;
-  border: 1.5px solid var(--color-toggle-off-border);
+  flex: none;
+  width: 36px;
+  height: 22px;
   border-radius: var(--radius-full);
-  background: var(--color-toggle-off-track);
+  background: var(--power-off-face);
+  box-shadow:
+    inset 0 1px 3px #00000022,
+    0 0 0 1px var(--border);
   cursor: pointer;
   transition: background var(--duration-base) var(--ease-standard);
 }
 
-.toggle:focus-visible {
-  outline: 2px solid var(--color-focus);
-  outline-offset: 3px;
-}
-
-.toggle-thumb {
+.switch::after {
+  content: "";
   position: absolute;
-  top: 2.5px;
-  left: 2.5px;
-  width: var(--toggle-thumb);
-  height: var(--toggle-thumb);
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
   border-radius: var(--radius-full);
-  background: var(--color-toggle-off-thumb);
-  box-shadow: var(--shadow-thumb);
-  transition: transform var(--duration-base) var(--ease-standard);
+  background: var(--power-off-ink);
+  transition:
+    transform var(--duration-base) var(--ease-spring),
+    background var(--duration-base);
 }
 
-.toggle.is-on {
-  border-color: var(--color-toggle-on-track);
-  background: var(--color-toggle-on-track);
+.switch:checked {
+  background: linear-gradient(160deg, var(--power-on-hi), var(--power-on));
 }
 
-.toggle.is-on .toggle-thumb {
-  background: var(--color-toggle-on-thumb);
-  transform: translateX(40px);
+.switch:checked::after {
+  background: var(--on-accent);
+  transform: translateX(14px);
 }
 
-.state {
-  color: var(--color-text-muted);
-  font-size: var(--text-display);
-  font-weight: var(--weight-semibold);
-  line-height: var(--lh-tight);
-}
-
-.state.is-on {
-  color: var(--color-text);
-}
-
-.status {
-  color: var(--color-text-muted);
-}
-
-.status-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  margin-right: var(--space-1);
-  border: 1.5px solid var(--color-status-idle);
-  border-radius: var(--radius-full);
-}
-
-.status-dot.is-active {
-  border-color: var(--color-status-active);
-  background: var(--color-status-active);
-}
-
-.status-dot.is-warning {
-  border-color: var(--color-status-warning);
-  background: var(--color-status-warning);
-}
-
-.status-timer {
-  display: block;
-  font-family: var(--font-mono);
-  font-size: var(--text-caption);
-}
-
-.card {
-  padding: var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-card);
-  color: var(--color-text-muted);
-}
-
-.footer {
-  color: var(--color-text-muted);
-  font-size: var(--text-caption);
-}
-
-.notice {
-  max-width: 280px;
-  color: var(--color-text-muted);
-  font-size: var(--text-caption);
-}
-
-.notice[hidden],
-.link-button[hidden] {
-  display: none;
-}
-
-.link-button {
-  display: block;
-  margin: var(--space-2) auto 0;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--color-focus);
-  font: inherit;
-  text-decoration: underline;
-  cursor: pointer;
-}
-
-.link-button:focus-visible {
-  outline: 2px solid var(--color-focus);
+.switch:focus-visible,
+.input:focus-visible {
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
+}
+
+.input {
+  height: 32px;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  box-shadow: 0 0 0 1px var(--border);
+  color: var(--text);
+  font: var(--weight-medium) var(--text-body) var(--font-sans);
+}
+
+.input-with-unit {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.input-number {
+  width: 64px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.unit {
+  color: var(--text-muted);
+}
+
+.shortcut {
+  display: inline-flex;
+  flex: none;
+  gap: var(--space-1);
+}
+
+.shortcut .as-btn {
+  height: 32px;
+  padding: 0 var(--space-3);
+  font-size: var(--text-caption);
+}
+
+.shortcut-key {
+  font-family: var(--font-mono);
+}
+
+.shortcut-key[aria-pressed="true"] {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Outside the scrolling list, so an error is seen wherever the change was. */
+#settings-error {
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--border);
+  font-size: var(--text-caption);
+}
+
+.version {
+  margin-top: var(--space-5);
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  text-align: center;
 }
