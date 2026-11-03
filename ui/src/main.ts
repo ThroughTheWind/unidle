@@ -30,6 +30,15 @@ interface Settings {
   notifyOnChange: boolean;
   trayNoticeShown: boolean;
   buttonStyle: ButtonStyle;
+  appIcon: AppIcon;
+}
+
+/** Mirrors `APP_ICONS` in crates/core/src/settings.rs. The first is the default. */
+const APP_ICONS = ["eye", "power"] as const;
+type AppIcon = (typeof APP_ICONS)[number];
+
+function appIcon(value: unknown): AppIcon {
+  return APP_ICONS.find((icon) => icon === value) ?? "eye";
 }
 
 const MIN_INTERVAL = 10;
@@ -166,6 +175,7 @@ const checkUpdates = element<HTMLButtonElement>("check-updates");
 const openWebsite = element<HTMLButtonElement>("open-website");
 const stylePicker = element("style-picker");
 const methodPicker = element("method-picker");
+const iconPicker = element("icon-picker");
 const nudgeEnabled = element<HTMLInputElement>("nudge-enabled");
 const nudgeKey = element<HTMLSelectElement>("nudge-key");
 const nudgeInterval = element<HTMLInputElement>("nudge-interval");
@@ -235,6 +245,17 @@ const selectStyle = segmented(
   },
 );
 
+const selectIcon = segmented(
+  iconPicker,
+  APP_ICONS,
+  (icon) => strings.appIcons[icon],
+  (icon) => {
+    if (settings) settings.appIcon = icon;
+    selectIcon(icon);
+    void update({ appIcon: icon });
+  },
+);
+
 const methods: readonly NudgeMethod[] = ["pointer", "keystroke", "both"];
 const selectMethod = segmented(
   methodPicker,
@@ -255,6 +276,7 @@ function renderSettings(): void {
   if (!settings) return;
   setButtonStyle(power, buttonStyle(settings.buttonStyle));
   selectStyle(buttonStyle(settings.buttonStyle));
+  selectIcon(appIcon(settings.appIcon));
   selectMethod(settings.nudgeMethod);
   nudgeEnabled.checked = settings.nudgeEnabled;
   nudgeKey.value = settings.nudgeKey;
@@ -378,6 +400,8 @@ text("title", strings.appName);
 text("schedule", strings.scheduleSoon);
 text("h-appearance", strings.appearance);
 text("l-style", strings.buttonStyle);
+text("l-icon", strings.appIcon);
+text("d-icon", strings.appIconHint);
 text("h-activity", strings.activity);
 text("l-nudge", strings.nudgeEnabled);
 text("d-nudge", strings.nudgeEnabledHint);
