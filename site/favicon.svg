@@ -1,4 +1,65 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
-  <rect width="1024" height="1024" rx="224" fill="#0B7A4B"/>
-  <path d="M152 540h192l80-216 152 416 96-272 48 72h152" fill="none" stroke="#fff" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Unidle app icon (default), small sizes (16 to 32 px): no rings, bigger disc and eye. -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1A211F"/>
+      <stop offset="0.55" stop-color="#111614"/>
+      <stop offset="1" stop-color="#07090A"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.16"/>
+      <stop offset="0.4" stop-color="#FFFFFF" stop-opacity="0.03"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.06"/>
+    </linearGradient>
+    <radialGradient id="bloom" cx="512" cy="540" r="470" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3EF0A8" stop-opacity="0.55"/>
+      <stop offset="0.55" stop-color="#3EF0A8" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="#3EF0A8" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="disc" x1="0.18" y1="0.1" x2="0.82" y2="0.95">
+      <stop offset="0" stop-color="#3FE09F"/>
+      <stop offset="0.4" stop-color="#34D697"/>
+      <stop offset="1" stop-color="#119565"/>
+    </linearGradient>
+    <radialGradient id="sheen" cx="0.38" cy="0.22" r="0.62">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.24"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="shade" cx="0.5" cy="0.35" r="0.65">
+      <stop offset="0.7" stop-color="#04110B" stop-opacity="0"/>
+      <stop offset="1" stop-color="#04110B" stop-opacity="0.28"/>
+    </radialGradient>
+    <radialGradient id="iris" cx="0.4" cy="0.35" r="0.7">
+      <stop offset="0" stop-color="#5EF0B4"/>
+      <stop offset="1" stop-color="#17B47A"/>
+    </radialGradient>
+    <filter id="drop" x="-30%" y="-30%" width="160%" height="170%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="22"/>
+      <feOffset dy="26"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.55"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <clipPath id="tileclip"><rect width="1024" height="1024" rx="224"/></clipPath>
+  </defs>
+
+  <rect width="1024" height="1024" rx="224" fill="url(#tile)"/>
+  <g clip-path="url(#tileclip)">
+    <circle cx="512" cy="540" r="470" fill="url(#bloom)"/>
+  </g>
+  <rect x="3" y="3" width="1018" height="1018" rx="221" fill="none" stroke="url(#rim)" stroke-width="6"/>
+
+  <g filter="url(#drop)">
+    <circle cx="512" cy="512" r="372" fill="url(#disc)"/>
+  </g>
+  <circle cx="512" cy="512" r="372" fill="url(#shade)"/>
+  <circle cx="512" cy="512" r="372" fill="url(#sheen)"/>
+  <circle cx="512" cy="512" r="369" fill="none" stroke="#FFFFFF" stroke-opacity="0.22" stroke-width="6"/>
+
+  <!-- Open eye, as the Wake eye button draws it when ON: on-accent almond, power-on iris. -->
+  <g transform="translate(512 512) scale(6.1) translate(-52 -52)">
+    <path d="M10 52C24 30 80 30 94 52C80 74 24 74 10 52Z" fill="#04110B" stroke="#04110B" stroke-width="4" stroke-linejoin="round"/>
+    <circle cx="52" cy="52" r="15" fill="url(#iris)"/>
+    <circle cx="52" cy="52" r="6.5" fill="#04110B"/>
+    <circle cx="57.5" cy="46.5" r="3.6" fill="#FFFFFF" fill-opacity="0.92"/>
+  </g>
 </svg>

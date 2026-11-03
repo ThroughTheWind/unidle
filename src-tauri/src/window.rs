@@ -32,9 +32,13 @@ fn build(app: &AppHandle) -> Option<WebviewWindow> {
         .iter()
         .find(|window| window.label == MAIN)?
         .clone();
-    WebviewWindowBuilder::from_config(app, &config)
+    let window = WebviewWindowBuilder::from_config(app, &config)
         .and_then(|builder| builder.build())
-        .ok()
+        .ok()?;
+    if let Some(image) = crate::app_icon::image(app) {
+        let _ = window.set_icon(image);
+    }
+    Some(window)
 }
 
 /// Called when the main window has been destroyed by closing it. The first

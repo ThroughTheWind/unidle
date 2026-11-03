@@ -109,13 +109,17 @@ States for every style: off, on, hover (slight lift), pressed (scale 0.97), focu
 
 Settings has a **Button style** segmented control (`role="radiogroup"`): Halo, Orbit, Pulse, Wake eye. Store the style id (`halo`, `orbit`, `pulse`, `eye`); a missing or unknown value falls back to `halo`. Changing it swaps the button instantly without changing the on/off state.
 
+### App icon setting
+
+Under Button style, an **App icon** segmented control: Wake eye (default) and Power button. Store `eye` or `power`; a missing or unknown value falls back to `eye`. It switches the tray, window and macOS Dock icons at once. The bundled icon (installers, Start menu, Finder, Linux launchers) is always the Wake eye. Both icons are the matching button, lit, on a graphite tile; sources in `src-tauri/icons/`.
+
 ## Supporting components
 
 - **StatusLine:** 8px dot or glyph plus text. Variants idle, active (with timer), starting, warning, error, scheduled. Always with text.
 - **Button:** 36 high, radius `md`. Primary = green gradient with `on-accent`; secondary = `power-off-face` with a `border` ring; ghost = `text-muted`. Never used for ON/OFF.
 - **IconButton:** 32 visual inside a 44 hit area, `text-muted`, `power-off-face` on hover, always with `aria-label`.
 - **Card:** `surface` → `surface-sunken`, 1px `border` ring, radius `lg`, padding 16.
-- **Tray icon:** 16px template glyph. Off: outlined power glyph. On: filled glyph (with Wake eye selected: closed/open eye).
+- **Tray icon:** follows the App icon setting. Wake eye: OFF is a closed eye in an outlined circle, ON an open eye on a filled green disc. Power button: OFF is an outlined power button, ON a filled green one. macOS uses monochrome template versions.
 
 ## Voice
 
