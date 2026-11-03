@@ -9,7 +9,39 @@ permissions:
   contents: write
 
 jobs:
+  # Checks the tag matches the app version and takes the release notes from CHANGELOG.md.
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      notes: ${{ steps.notes.outputs.notes }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check the tag matches the version in Cargo.toml
+        # The landing page links to assets named with the Cargo.toml version, so a mismatched tag
+        # would publish installers its download buttons cannot find.
+        run: |
+          version=$(sed -n '/^\[workspace\.package\]/,/^\[/s/^version *= *"\(.*\)"/\1/p' Cargo.toml)
+          test -n "$version"
+          if [ "${GITHUB_REF_NAME}" != "v$version" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match Cargo.toml version $version"; exit 1
+          fi
+      - id: notes
+        name: Extract release notes from CHANGELOG.md
+        run: |
+          notes=$(awk -v h="## ${GITHUB_REF_NAME#v}" '$0==h{f=1;next} f&&/^## /{exit} f' CHANGELOG.md)
+          if [ -z "$(echo "$notes" | tr -d '[:space:]')" ]; then
+            echo "CHANGELOG.md has no '## ${GITHUB_REF_NAME#v}' section"; exit 1
+          fi
+          {
+            echo "notes<<UNIDLE_NOTES_EOF"
+            echo "$notes"
+            echo
+            echo "Download from [the landing page](https://throughthewind.github.io/unidle/) or from the assets below."
+            echo "UNIDLE_NOTES_EOF"
+          } >> "$GITHUB_OUTPUT"
+
   publish:
+    needs: prepare
     strategy:
       fail-fast: false
       matrix:
@@ -43,5 +75,6 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: Unidle ${{ github.ref_name }}
+          releaseBody: ${{ needs.prepare.outputs.notes }}
           releaseDraft: true
           args: ${{ matrix.args }}

@@ -2,9 +2,9 @@
 
 A small, open-source desktop app for Windows, macOS and Linux that keeps your computer awake with one ON/OFF toggle.
 
-> **Status: in development.** Turning ON keeps the computer awake and sends input nudges, and the app lives in the tray. Settings are still to come. See the [roadmap](docs/ROADMAP.md).
+> **Status: 0.1.0, the first release.** Turning ON keeps the computer awake and sends input nudges, the app lives in the tray, and every setting is in the window. Download it from the [landing page](https://throughthewind.github.io/unidle/) or [GitHub Releases](https://github.com/ThroughTheWind/unidle/releases). What changed is in the [changelog](CHANGELOG.md), and what comes next in the [roadmap](docs/ROADMAP.md).
 
-## What it will do
+## What it does
 
 When ON, the app asks the OS not to sleep and sends a tiny input event at an interval, with no visible effect, so apps that watch for input see activity too. When OFF, or if the app crashes, your computer behaves normally. It makes no network connections. The full behavior is in the [spec](docs/SPEC.md).
 
