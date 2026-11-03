@@ -30,6 +30,13 @@ fast_budget_ms = 30000
 # why     = "Adopted 2026-01-01; predates rungs and is owned by this repo."
 
 [[gates]]
+id      = "rust-fmt"
+kind    = "command"
+tier    = "fast"
+command = "cargo fmt --all --check"
+why     = "CI refuses unformatted Rust, and a file written after the last `cargo fmt` reached CI unformatted on WI-001 (2026-11-03). CONTRIBUTING already listed the check, so it is now mechanical."
+
+[[gates]]
 id      = "core-tests"
 kind    = "command"
 tier    = "full"
