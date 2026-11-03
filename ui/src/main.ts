@@ -171,6 +171,8 @@ const mainView = element("main-view");
 const settingsView = element("settings-view");
 const back = element<HTMLButtonElement>("back");
 const openSettings = element<HTMLButtonElement>("open-settings");
+const checkUpdates = element<HTMLButtonElement>("check-updates");
+const openWebsite = element<HTMLButtonElement>("open-website");
 const stylePicker = element("style-picker");
 const methodPicker = element("method-picker");
 const iconPicker = element("icon-picker");
@@ -375,6 +377,8 @@ function showView(name: "main" | "settings"): void {
   settingsView.hidden = !inSettings;
   back.hidden = !inSettings;
   openSettings.hidden = inSettings;
+  // The main screen stays uncluttered: only the update link sits there.
+  openWebsite.hidden = !inSettings;
   shell.classList.toggle("in-settings", inSettings);
   text("title", inSettings ? strings.settings : strings.appName);
   if (recording) stopRecording();
@@ -384,6 +388,8 @@ function showView(name: "main" | "settings"): void {
 
 openSettings.addEventListener("click", () => showView("settings"));
 back.addEventListener("click", () => showView("main"));
+checkUpdates.addEventListener("click", () => void invoke("open_link", { link: "releases" }));
+openWebsite.addEventListener("click", () => void invoke("open_link", { link: "website" }));
 window.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && !settingsView.hidden && !recording) showView("main");
 });
@@ -415,6 +421,13 @@ shortcutClear.textContent = strings.shortcutClear;
 power.setAttribute("aria-label", strings.toggleLabel);
 openSettings.setAttribute("aria-label", strings.openSettings);
 back.setAttribute("aria-label", strings.back);
+for (const [button, label] of [
+  [checkUpdates, strings.checkUpdates],
+  [openWebsite, strings.website],
+] as const) {
+  button.setAttribute("aria-label", label);
+  button.title = label;
+}
 setButtonStyle(power, "halo");
 
 const [loaded, keys, version] = await Promise.all([

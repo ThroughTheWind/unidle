@@ -180,6 +180,25 @@ fn nudge_keys() -> Vec<&'static str> {
         .collect()
 }
 
+/// Pages the window links to. The window names one and the URL stays here, so
+/// it can't open anything else. The browser loads the page: the app itself
+/// makes no network request (SPEC NFR-2).
+const RELEASES_URL: &str = "https://github.com/ThroughTheWind/unidle/releases";
+const WEBSITE_URL: &str = "https://throughthewind.github.io/unidle/";
+
+#[tauri::command]
+fn open_link(app: AppHandle, link: String) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    let url = match link.as_str() {
+        "releases" => RELEASES_URL,
+        "website" => WEBSITE_URL,
+        _ => return Err(format!("unknown link: {link}")),
+    };
+    app.opener()
+        .open_url(url, None::<&str>)
+        .map_err(|error| error.to_string())
+}
+
 #[tauri::command]
 fn open_input_permission_settings() -> Result<(), String> {
     unidle_core::open_input_permission_settings().map_err(|error| error.to_string())
@@ -285,6 +304,7 @@ fn main() {
             window::show(app)
         }))
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec![HIDDEN_ARG]),
@@ -316,6 +336,7 @@ fn main() {
             get_settings,
             update_settings,
             nudge_keys,
+            open_link,
             open_input_permission_settings
         ])
         .build(tauri::generate_context!())
