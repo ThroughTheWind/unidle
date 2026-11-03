@@ -131,3 +131,31 @@ body {
   color: var(--color-text-muted);
   font-size: var(--text-caption);
 }
+
+.notice {
+  max-width: 280px;
+  color: var(--color-text-muted);
+  font-size: var(--text-caption);
+}
+
+.notice[hidden],
+.link-button[hidden] {
+  display: none;
+}
+
+.link-button {
+  display: block;
+  margin: var(--space-2) auto 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-focus);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.link-button:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}

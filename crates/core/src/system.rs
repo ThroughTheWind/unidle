@@ -1,10 +1,14 @@
-use crate::adapter::{AdapterError, Capabilities, PlatformAdapter};
-use crate::platform::{POWER_ASSERTION_SUPPORTED, PowerAssertion, PowerOptions};
+use std::time::Duration;
 
-/// The real adapter: holds an OS power assertion while ON.
+use crate::adapter::{AdapterError, Capabilities, NudgeKind, PlatformAdapter};
+use crate::platform::{Input, POWER_ASSERTION_SUPPORTED, PowerAssertion, PowerOptions};
+
+/// The real adapter: holds an OS power assertion while ON, and sends input
+/// nudges where the OS allows it.
 pub struct SystemAdapter {
     options: PowerOptions,
     assertion: Option<PowerAssertion>,
+    input: Input,
 }
 
 impl SystemAdapter {
@@ -12,6 +16,7 @@ impl SystemAdapter {
         Self {
             options,
             assertion: None,
+            input: Input::new(),
         }
     }
 
@@ -57,14 +62,20 @@ impl PlatformAdapter for SystemAdapter {
         Ok(())
     }
 
-    fn nudge(&mut self) -> Result<(), AdapterError> {
-        Ok(())
+    fn nudge(&mut self, kind: NudgeKind) -> Result<(), AdapterError> {
+        self.input.nudge(kind)
+    }
+
+    fn idle_time(&mut self) -> Option<Duration> {
+        self.input.idle_time()
     }
 
     fn capabilities(&self) -> Capabilities {
+        let input = self.input.availability();
         Capabilities {
             power_assertion: POWER_ASSERTION_SUPPORTED,
-            input_nudge: false,
+            input_nudge: input.is_ok(),
+            input_unavailable: input.err(),
         }
     }
 }
