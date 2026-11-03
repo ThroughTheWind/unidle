@@ -8,21 +8,21 @@ Keep it short. This document is read at the start of every session, and a long o
 
 ## Current objective
 
-Phase 0 of the [roadmap](../docs/ROADMAP.md): prove the risky platform parts before building more UI.
+Phase 1 of the [roadmap](../docs/ROADMAP.md), v1.0: everything in SPEC §5 to §9.
 
 ## In progress
 
-Nothing. The repository skeleton has landed and no work item has started.
+A stack of five PRs, each based on the one before, to merge in order: #1 WI-001 power assertion, #2 WI-002 input nudges, #3 WI-004 tray and window lifecycle, #4 WI-005 settings backend, #5 the single-instance fix (F-004). Each item is at `review`, with its real-machine criteria listed as open in its `## Review`.
 
 ## Resume from
 
-Accept and plan [WI-001](../docs/backlog/items/WI-001-power-assertion-spike.md).
+Run the open real-machine criteria in WI-001, WI-002, WI-004 and WI-005 on Windows, macOS and a Linux desktop (X11 and Wayland). The headless examples are `cargo run -p unidle-core --example hold` and `--example nudge`.
 
 ## Up next
 
-1. WI-001, power assertion spike
-2. WI-002, input nudge spike
-3. WI-004, tray and window lifecycle, then WI-003, footprint measurement
+1. The window UI and settings screen, once Antoine picks the design. The backend commands `get_settings`, `update_settings` and `nudge_keys` exist. F-003 (a failed turn-ON is silent) goes with it.
+2. WI-003, footprint measurement on each OS with a release build.
+3. SPEC §9 acceptance pass on Windows 11, macOS 14+ and Ubuntu LTS, then the v1.0 release.
 
 ## Active constraints — do not reopen
 
@@ -31,8 +31,8 @@ Accept and plan [WI-001](../docs/backlog/items/WI-001-power-assertion-spike.md).
 
 ## Working assumptions
 
-- `keepawake` and `enigo` can meet the spec on all three OSes. Neither has been tried here.
-- Closing the webview while hidden keeps memory under the spec limit on macOS and Linux too. It was measured only on Windows (F-002).
+- OS calls are direct, not through `keepawake` or `enigo` (ADR-0002, ADR-0003). The macOS FFI compiles and links in CI but hasn't run on a Mac.
+- Closing the webview while hidden keeps memory under the spec limit on macOS too. Measured on Windows (F-002) and in a Linux debug build on Xvfb (about 46 MB private, WI-003).
 - The local folder is still named `unidle`. The repo and everything in it are `unidle`.
 
 ## Open questions
