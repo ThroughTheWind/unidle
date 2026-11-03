@@ -120,6 +120,16 @@ body {
   text-align: left;
 }
 
+/* OS errors can be long: two lines here, the rest on hover. */
+#status-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
 .status-line .dot {
   align-self: flex-start;
   margin-top: 5px;
@@ -141,6 +151,7 @@ body {
 .settings-scroll {
   flex: 1;
   overflow-y: auto;
+  scrollbar-width: thin;
   padding-bottom: var(--space-2);
 }
 

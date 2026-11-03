@@ -77,6 +77,7 @@ function setStatusLine(kind: "warning" | "error" | null, line = ""): void {
   statusLine.hidden = kind === null;
   statusLine.className = `as-status status-line ${kind ?? ""}`;
   statusText.textContent = line;
+  statusLine.title = line;
 }
 
 function renderStatus(): void {

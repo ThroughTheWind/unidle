@@ -62,3 +62,8 @@ The window still has the placeholder toggle from the skeleton, and every SPEC §
 - Branch `feature/WI-007-window-ui`. WI-006 went to the landing page.
 
 ## Review
+
+1. Met. `npm run build:ui`, `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test -p unidle-core` pass. The settings tests cover `buttonStyle` round-tripping and an unknown value falling back alone.
+2. Met. Playwright at 360×420 with the Tauri calls mocked: all four styles OFF and ON in light and dark, the settings view top and bottom, a style pick that swaps the button and keeps the state, `Ctrl+Alt+K` recorded and saved, an interval of 5 refused with a message, and a failed ON that shows "Starting…" with input disabled, then snaps back with the error.
+3. Met, on Xvfb with no idle inhibitor running. A `settings.json` holding `"buttonStyle": "orbit"` opened with Orbit. Clicking ON failed and the status line showed the D-Bus error, clamped to two lines (F-003). Picking Wake eye in Settings wrote `"buttonStyle": "eye"` and swapped the button.
+4. **Open.** Needs real machines.
