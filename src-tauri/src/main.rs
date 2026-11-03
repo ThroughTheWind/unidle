@@ -5,10 +5,9 @@ use std::sync::Mutex;
 
 use serde::Serialize;
 use tauri::State;
-use unidle_core::{Controller, NoopAdapter, Source, Status};
+use unidle_core::{Controller, Source, Status, SystemAdapter};
 
-// The real platform adapters replace NoopAdapter here.
-type AppController = Mutex<Controller<NoopAdapter>>;
+type AppController = Mutex<Controller<SystemAdapter>>;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -49,7 +48,7 @@ fn set_active(on: bool, controller: State<'_, AppController>) -> Result<StatusDt
 
 fn main() {
     tauri::Builder::default()
-        .manage(Mutex::new(Controller::new(NoopAdapter)))
+        .manage(Mutex::new(Controller::new(SystemAdapter::default())))
         .invoke_handler(tauri::generate_handler![get_status, set_active])
         .run(tauri::generate_context!())
         .expect("failed to run the application");

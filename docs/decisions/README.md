@@ -13,6 +13,7 @@ it is superseded by a new record that names it.
 | id | title | status | date |
 | --- | --- | --- | --- |
 | [ADR-0001](ADR-0001-tauri-with-rust-core.md) | Build the app with Tauri 2 and a separate Rust core | accepted | 2026-11-03 |
+| [ADR-0002](ADR-0002-direct-os-power-calls.md) | Call the OS power APIs directly instead of through keepawake | accepted | 2026-11-03 |
 <!-- rungs:end adr-index -->
 
 ## Admission rule
