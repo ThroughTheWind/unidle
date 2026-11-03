@@ -35,6 +35,12 @@ export const strings = {
     pulse: "Pulse",
     eye: "Wake eye",
   },
+  appIcon: "App icon",
+  appIcons: {
+    eye: "Wake eye",
+    power: "Power button",
+  },
+  appIconHint: "Used for the tray, taskbar and Dock",
   activity: "Activity",
   nudgeEnabled: "Simulate input",
   nudgeEnabledHint: "Off keeps the system awake without touching input",

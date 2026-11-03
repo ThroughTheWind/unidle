@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
-  <!-- Unidle app icon, small sizes (16 to 32 px): no rings, bigger disc and glyph so it stays legible. Source of the large sizes is icon.svg. -->
+  <!-- Unidle app icon (default), small sizes (16 to 32 px): no rings, bigger disc and eye. -->
   <defs>
     <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#1A211F"/>
@@ -29,6 +29,10 @@
       <stop offset="0.7" stop-color="#04110B" stop-opacity="0"/>
       <stop offset="1" stop-color="#04110B" stop-opacity="0.28"/>
     </radialGradient>
+    <radialGradient id="iris" cx="0.4" cy="0.35" r="0.7">
+      <stop offset="0" stop-color="#5EF0B4"/>
+      <stop offset="1" stop-color="#17B47A"/>
+    </radialGradient>
     <filter id="drop" x="-30%" y="-30%" width="160%" height="170%">
       <feGaussianBlur in="SourceAlpha" stdDeviation="22"/>
       <feOffset dy="26"/>
@@ -51,8 +55,11 @@
   <circle cx="512" cy="512" r="372" fill="url(#sheen)"/>
   <circle cx="512" cy="512" r="369" fill="none" stroke="#FFFFFF" stroke-opacity="0.22" stroke-width="6"/>
 
-  <g fill="none" stroke="#04110B" stroke-width="72" stroke-linecap="round" transform="translate(512 512) scale(1.28) translate(-512 -512)">
-    <path d="M598.4 431.4A132 132 0 1 1 425.6 431.4"/>
-    <path d="M512 352V508"/>
+  <!-- Open eye, as the Wake eye button draws it when ON: on-accent almond, power-on iris. -->
+  <g transform="translate(512 512) scale(6.1) translate(-52 -52)">
+    <path d="M10 52C24 30 80 30 94 52C80 74 24 74 10 52Z" fill="#04110B" stroke="#04110B" stroke-width="4" stroke-linejoin="round"/>
+    <circle cx="52" cy="52" r="15" fill="url(#iris)"/>
+    <circle cx="52" cy="52" r="6.5" fill="#04110B"/>
+    <circle cx="57.5" cy="46.5" r="3.6" fill="#FFFFFF" fill-opacity="0.92"/>
   </g>
 </svg>

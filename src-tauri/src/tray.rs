@@ -13,20 +13,42 @@ const MENU_TOGGLE: &str = "toggle";
 const MENU_OPEN: &str = "open";
 const MENU_QUIT: &str = "quit";
 
-/// Shape, not only color, tells ON from OFF (SPEC FR-4): OFF is an outline,
-/// ON is filled with a dot badge. macOS gets monochrome template images that
-/// the menu bar tints itself.
+/// Shape, not only color, tells ON from OFF (SPEC FR-4): OFF is an outlined
+/// button, ON a filled one. Each app icon (app_icon.rs) has its own pair:
+/// a closed and an open eye, or the power glyph. macOS gets monochrome
+/// template images that the menu bar tints itself.
 #[cfg(target_os = "macos")]
 mod icons {
-    pub const OFF: &[u8] = include_bytes!("../icons/tray/off-template.png");
-    pub const ON: &[u8] = include_bytes!("../icons/tray/on-template.png");
+    pub const EYE: [&[u8]; 2] = [
+        include_bytes!("../icons/tray/off-template.png"),
+        include_bytes!("../icons/tray/on-template.png"),
+    ];
+    pub const POWER: [&[u8]; 2] = [
+        include_bytes!("../icons/tray/power/off-template.png"),
+        include_bytes!("../icons/tray/power/on-template.png"),
+    ];
     pub const TEMPLATE: bool = true;
 }
 #[cfg(not(target_os = "macos"))]
 mod icons {
-    pub const OFF: &[u8] = include_bytes!("../icons/tray/off.png");
-    pub const ON: &[u8] = include_bytes!("../icons/tray/on.png");
+    pub const EYE: [&[u8]; 2] = [
+        include_bytes!("../icons/tray/off.png"),
+        include_bytes!("../icons/tray/on.png"),
+    ];
+    pub const POWER: [&[u8]; 2] = [
+        include_bytes!("../icons/tray/power/off.png"),
+        include_bytes!("../icons/tray/power/on.png"),
+    ];
     pub const TEMPLATE: bool = false;
+}
+
+fn icon(app: &AppHandle, on: bool) -> &'static [u8] {
+    let set = if crate::app_icon::is_power(app) {
+        icons::POWER
+    } else {
+        icons::EYE
+    };
+    set[usize::from(on)]
 }
 
 /// Menu items whose text follows the state.
@@ -53,7 +75,7 @@ pub fn create(app: &AppHandle) -> tauri::Result<TrayMenu> {
     )?;
 
     TrayIconBuilder::with_id(TRAY_ID)
-        .icon(Image::from_bytes(icons::OFF)?)
+        .icon(Image::from_bytes(icon(app, false))?)
         .icon_as_template(icons::TEMPLATE)
         .tooltip(strings::TOOLTIP_OFF)
         .menu(&menu)
@@ -72,8 +94,8 @@ pub fn create(app: &AppHandle) -> tauri::Result<TrayMenu> {
 pub fn refresh(app: &AppHandle, status: &Status) {
     let on = status.is_on();
     if let Some(tray) = app.tray_by_id(TRAY_ID) {
-        let icon = Image::from_bytes(if on { icons::ON } else { icons::OFF }).ok();
-        let _ = tray.set_icon_with_as_template(icon, icons::TEMPLATE);
+        let image = Image::from_bytes(icon(app, on)).ok();
+        let _ = tray.set_icon_with_as_template(image, icons::TEMPLATE);
         let _ = tray.set_tooltip(Some(if on {
             strings::TOOLTIP_ON
         } else {
