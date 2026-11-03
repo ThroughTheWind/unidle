@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "The main window gets Tauri's core defaults and nothing else.",
+  "description": "The main window gets Tauri's core defaults, plus setting its own theme so the title bar follows the Theme setting.",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": ["core:default", "core:window:allow-set-theme"]
 }

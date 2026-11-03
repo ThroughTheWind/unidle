@@ -1,6 +1,7 @@
 // No console window on Windows in release builds.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod app_icon;
 mod settings;
 mod strings;
 mod tray;
@@ -162,6 +163,7 @@ fn get_settings(app: State<'_, App>) -> Settings {
 #[tauri::command]
 fn update_settings(patch: serde_json::Value, app: AppHandle) -> Result<Settings, String> {
     let settings = settings::update(&app, patch)?;
+    app_icon::apply(&app);
     let status = app.state::<App>().controller().status();
     tray::refresh(&app, &status);
     let _ = app.emit(STATUS_EVENT, StatusDto::from(status));
@@ -176,6 +178,25 @@ fn nudge_keys() -> Vec<&'static str> {
         .filter(|key| key.is_safe_here())
         .map(NudgeKey::name)
         .collect()
+}
+
+/// Pages the window links to. The window names one and the URL stays here, so
+/// it can't open anything else. The browser loads the page: the app itself
+/// makes no network request (SPEC NFR-2).
+const RELEASES_URL: &str = "https://github.com/ThroughTheWind/unidle/releases";
+const WEBSITE_URL: &str = "https://throughthewind.github.io/unidle/";
+
+#[tauri::command]
+fn open_link(app: AppHandle, link: String) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    let url = match link.as_str() {
+        "releases" => RELEASES_URL,
+        "website" => WEBSITE_URL,
+        _ => return Err(format!("unknown link: {link}")),
+    };
+    app.opener()
+        .open_url(url, None::<&str>)
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
@@ -245,6 +266,9 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     if let Err(error) = settings::apply_shortcut(&handle, loaded.global_shortcut.as_deref()) {
         eprintln!("settings: {error}");
     }
+    // The tray was built before the settings were read.
+    app_icon::apply(&handle);
+    tray::refresh(&handle, &app.state::<App>().controller().status());
     if loaded.start_on() {
         let _ = set_active(&handle, true);
     }
@@ -280,6 +304,7 @@ fn main() {
             window::show(app)
         }))
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec![HIDDEN_ARG]),
@@ -311,6 +336,7 @@ fn main() {
             get_settings,
             update_settings,
             nudge_keys,
+            open_link,
             open_input_permission_settings
         ])
         .build(tauri::generate_context!())

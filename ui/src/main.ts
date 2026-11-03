@@ -1,6 +1,7 @@
 import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import { type ButtonStyle, BUTTON_STYLES, buttonStyle, setButtonStyle } from "./power-button";
 import { shortcutFromEvent } from "./shortcut";
@@ -16,6 +17,9 @@ interface Status {
 
 type NudgeMethod = "pointer" | "keystroke" | "both";
 
+const THEMES = ["system", "light", "dark"] as const;
+type Theme = (typeof THEMES)[number];
+
 /** The settings file's fields, as `get_settings` returns them. */
 interface Settings {
   nudgeEnabled: boolean;
@@ -30,6 +34,16 @@ interface Settings {
   notifyOnChange: boolean;
   trayNoticeShown: boolean;
   buttonStyle: ButtonStyle;
+  theme: Theme;
+  appIcon: AppIcon;
+}
+
+/** Mirrors `APP_ICONS` in crates/core/src/settings.rs. The first is the default. */
+const APP_ICONS = ["eye", "power"] as const;
+type AppIcon = (typeof APP_ICONS)[number];
+
+function appIcon(value: unknown): AppIcon {
+  return APP_ICONS.find((icon) => icon === value) ?? "eye";
 }
 
 const MIN_INTERVAL = 10;
@@ -162,8 +176,11 @@ const mainView = element("main-view");
 const settingsView = element("settings-view");
 const back = element<HTMLButtonElement>("back");
 const openSettings = element<HTMLButtonElement>("open-settings");
+const checkUpdates = element<HTMLButtonElement>("check-updates");
+const openWebsite = element<HTMLButtonElement>("open-website");
 const stylePicker = element("style-picker");
 const methodPicker = element("method-picker");
+const iconPicker = element("icon-picker");
 const nudgeEnabled = element<HTMLInputElement>("nudge-enabled");
 const nudgeKey = element<HTMLSelectElement>("nudge-key");
 const nudgeInterval = element<HTMLInputElement>("nudge-interval");
@@ -233,6 +250,39 @@ const selectStyle = segmented(
   },
 );
 
+/** "system" follows the OS through `prefers-color-scheme` (tokens.css). */
+function applyTheme(theme: Theme): void {
+  const root = document.documentElement;
+  if (theme === "system") delete root.dataset.theme;
+  else root.dataset.theme = theme;
+  // The native title bar follows too; null means the OS theme.
+  void getCurrentWindow()
+    .setTheme(theme === "system" ? null : theme)
+    .catch(() => {});
+}
+
+const selectTheme = segmented(
+  element("theme-picker"),
+  THEMES,
+  (theme) => strings.themes[theme],
+  (theme) => {
+    applyTheme(theme);
+    selectTheme(theme);
+    void update({ theme });
+  },
+);
+
+const selectIcon = segmented(
+  iconPicker,
+  APP_ICONS,
+  (icon) => strings.appIcons[icon],
+  (icon) => {
+    if (settings) settings.appIcon = icon;
+    selectIcon(icon);
+    void update({ appIcon: icon });
+  },
+);
+
 const methods: readonly NudgeMethod[] = ["pointer", "keystroke", "both"];
 const selectMethod = segmented(
   methodPicker,
@@ -253,6 +303,10 @@ function renderSettings(): void {
   if (!settings) return;
   setButtonStyle(power, buttonStyle(settings.buttonStyle));
   selectStyle(buttonStyle(settings.buttonStyle));
+  const theme = THEMES.find((name) => name === settings?.theme) ?? "system";
+  applyTheme(theme);
+  selectTheme(theme);
+  selectIcon(appIcon(settings.appIcon));
   selectMethod(settings.nudgeMethod);
   nudgeEnabled.checked = settings.nudgeEnabled;
   nudgeKey.value = settings.nudgeKey;
@@ -353,6 +407,8 @@ function showView(name: "main" | "settings"): void {
   settingsView.hidden = !inSettings;
   back.hidden = !inSettings;
   openSettings.hidden = inSettings;
+  // The main screen stays uncluttered: only the update link sits there.
+  openWebsite.hidden = !inSettings;
   shell.classList.toggle("in-settings", inSettings);
   text("title", inSettings ? strings.settings : strings.appName);
   if (recording) stopRecording();
@@ -362,6 +418,8 @@ function showView(name: "main" | "settings"): void {
 
 openSettings.addEventListener("click", () => showView("settings"));
 back.addEventListener("click", () => showView("main"));
+checkUpdates.addEventListener("click", () => void invoke("open_link", { link: "releases" }));
+openWebsite.addEventListener("click", () => void invoke("open_link", { link: "website" }));
 window.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && !settingsView.hidden && !recording) showView("main");
 });
@@ -369,9 +427,11 @@ window.addEventListener("keydown", (event) => {
 // ── Start ────────────────────────────────────────────────────────────────
 
 text("title", strings.appName);
-text("schedule", strings.scheduleSoon);
 text("h-appearance", strings.appearance);
 text("l-style", strings.buttonStyle);
+text("l-theme", strings.theme);
+text("l-icon", strings.appIcon);
+text("d-icon", strings.appIconHint);
 text("h-activity", strings.activity);
 text("l-nudge", strings.nudgeEnabled);
 text("d-nudge", strings.nudgeEnabledHint);
@@ -391,6 +451,13 @@ shortcutClear.textContent = strings.shortcutClear;
 power.setAttribute("aria-label", strings.toggleLabel);
 openSettings.setAttribute("aria-label", strings.openSettings);
 back.setAttribute("aria-label", strings.back);
+for (const [button, label] of [
+  [checkUpdates, strings.checkUpdates],
+  [openWebsite, strings.website],
+] as const) {
+  button.setAttribute("aria-label", label);
+  button.title = label;
+}
 setButtonStyle(power, "halo");
 
 const [loaded, keys, version] = await Promise.all([

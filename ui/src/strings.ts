@@ -24,7 +24,6 @@ export const strings = {
   notImplemented: "This system can't be kept awake yet",
   inputUnavailable: "Input simulation unavailable: keeping the system awake only.",
   openAccessibility: "Open Accessibility settings",
-  scheduleSoon: "Schedule (coming soon)",
 
   // Settings
   appearance: "Appearance",
@@ -35,6 +34,18 @@ export const strings = {
     pulse: "Pulse",
     eye: "Wake eye",
   },
+  theme: "Theme",
+  themes: {
+    system: "System",
+    light: "Light",
+    dark: "Dark",
+  },
+  appIcon: "App icon",
+  appIcons: {
+    eye: "Wake eye",
+    power: "Power button",
+  },
+  appIconHint: "Used for the tray, taskbar and Dock",
   activity: "Activity",
   nudgeEnabled: "Simulate input",
   nudgeEnabledHint: "Off keeps the system awake without touching input",
@@ -61,4 +72,7 @@ export const strings = {
   shortcutNeedsModifier: "Use at least one of Ctrl, Alt, Shift or Super with a key",
   shortcutClear: "Clear",
   version: (version: string) => `Unidle ${version}`,
+  // Icon buttons in the bar. Both open a page in the browser; the app itself makes no network request (SPEC NFR-2).
+  checkUpdates: "Check for new versions",
+  website: "Website",
 } as const;
