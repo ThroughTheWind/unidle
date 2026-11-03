@@ -1,4 +1,4 @@
-//! Linux: D-Bus idle inhibitors.
+//! Linux: D-Bus idle inhibitors, and X11 input for the nudge.
 //!
 //! Desktops disagree on which inhibitor they honor, so this takes every one
 //! that is available and succeeds if at least one was granted:
@@ -167,3 +167,168 @@ fn logind_inhibit() -> Result<Inhibitor, String> {
         .map(|fd| Inhibitor::Logind { _fd: fd })
         .map_err(|error| format!("logind: {error}"))
 }
+
+// ── Input ────────────────────────────────────────────────────────────────
+
+mod input {
+    use std::time::Duration;
+
+    use x11rb::connection::{Connection as _, RequestConnection as _};
+    use x11rb::protocol::screensaver::ConnectionExt as _;
+    use x11rb::protocol::xproto::{
+        ConnectionExt as _, KEY_PRESS_EVENT, KEY_RELEASE_EVENT, Keycode, MOTION_NOTIFY_EVENT,
+        Window,
+    };
+    use x11rb::protocol::xtest::{self, ConnectionExt as _};
+    use x11rb::rust_connection::RustConnection;
+
+    use crate::adapter::{AdapterError, InputUnavailable};
+
+    const XK_F15: u32 = 0xFFCC;
+    const XK_SHIFT_L: u32 = 0xFFE1;
+
+    struct X11 {
+        conn: RustConnection,
+        root: Window,
+        key: Keycode,
+        has_idle_timer: bool,
+    }
+
+    /// Input through the XTEST extension, idle time through the
+    /// MIT-SCREEN-SAVER extension. A Wayland session gets neither: there is
+    /// no portable way to inject input there, so the app falls back to the
+    /// power assertion alone (SPEC PB-2). XWayland is not used, because input
+    /// injected into it does not reach the compositor's idle timer.
+    pub struct Input {
+        x11: Result<X11, InputUnavailable>,
+    }
+
+    impl Input {
+        pub fn new() -> Self {
+            Self { x11: connect() }
+        }
+
+        pub fn availability(&self) -> Result<(), InputUnavailable> {
+            self.x11.as_ref().map(drop).map_err(|reason| *reason)
+        }
+
+        /// An absolute move to 1 px right and back, then a warp to the start
+        /// if anything moved it in between.
+        pub fn nudge_pointer(&mut self) -> Result<(), AdapterError> {
+            let x11 = self.x11()?;
+            let start = x11
+                .conn
+                .query_pointer(x11.root)
+                .map_err(error)?
+                .reply()
+                .map_err(error)?;
+            let (x, y) = (start.root_x, start.root_y);
+            fake(x11, MOTION_NOTIFY_EVENT, 0, x.saturating_add(1), y)?;
+            fake(x11, MOTION_NOTIFY_EVENT, 0, x, y)?;
+            let end = x11
+                .conn
+                .query_pointer(x11.root)
+                .map_err(error)?
+                .reply()
+                .map_err(error)?;
+            if (end.root_x, end.root_y) != (x, y) {
+                x11.conn
+                    .warp_pointer(x11::NONE, x11.root, 0, 0, 0, 0, x, y)
+                    .map_err(error)?;
+                x11.conn.flush().map_err(error)?;
+            }
+            Ok(())
+        }
+
+        /// F15 down and up, or Shift if the keyboard map has no F15.
+        pub fn nudge_key(&mut self) -> Result<(), AdapterError> {
+            let x11 = self.x11()?;
+            fake(x11, KEY_PRESS_EVENT, x11.key, 0, 0)?;
+            fake(x11, KEY_RELEASE_EVENT, x11.key, 0, 0)
+        }
+
+        pub fn idle_time(&mut self) -> Option<Duration> {
+            let x11 = self.x11.as_ref().ok()?;
+            if !x11.has_idle_timer {
+                return None;
+            }
+            let info = x11
+                .conn
+                .screensaver_query_info(x11.root)
+                .ok()?
+                .reply()
+                .ok()?;
+            Some(Duration::from_millis(u64::from(info.ms_since_user_input)))
+        }
+
+        fn x11(&self) -> Result<&X11, AdapterError> {
+            self.x11
+                .as_ref()
+                .map_err(|reason| AdapterError(format!("Input nudge unavailable: {reason:?}")))
+        }
+    }
+
+    mod x11 {
+        pub const NONE: u32 = 0;
+    }
+
+    fn connect() -> Result<X11, InputUnavailable> {
+        if is_wayland() {
+            return Err(InputUnavailable::Wayland);
+        }
+        if std::env::var_os("DISPLAY").is_none_or(|display| display.is_empty()) {
+            return Err(InputUnavailable::NoDisplay);
+        }
+        let (conn, screen) = x11rb::connect(None).map_err(|_| InputUnavailable::NoDisplay)?;
+        let has = |name| conn.extension_information(name).ok().flatten().is_some();
+        if !has(xtest::X11_EXTENSION_NAME) {
+            return Err(InputUnavailable::Unsupported);
+        }
+        let has_idle_timer = has(x11rb::protocol::screensaver::X11_EXTENSION_NAME);
+        let root = conn.setup().roots[screen].root;
+        let key = keycode_for(&conn, XK_F15)
+            .or_else(|| keycode_for(&conn, XK_SHIFT_L))
+            .ok_or(InputUnavailable::Unsupported)?;
+        Ok(X11 {
+            conn,
+            root,
+            key,
+            has_idle_timer,
+        })
+    }
+
+    fn is_wayland() -> bool {
+        std::env::var("XDG_SESSION_TYPE").is_ok_and(|kind| kind.eq_ignore_ascii_case("wayland"))
+            || std::env::var_os("WAYLAND_DISPLAY").is_some_and(|display| !display.is_empty())
+    }
+
+    fn keycode_for(conn: &RustConnection, keysym: u32) -> Option<Keycode> {
+        let setup = conn.setup();
+        let (min, max) = (setup.min_keycode, setup.max_keycode);
+        let mapping = conn
+            .get_keyboard_mapping(min, max - min + 1)
+            .ok()?
+            .reply()
+            .ok()?;
+        let per = usize::from(mapping.keysyms_per_keycode).max(1);
+        mapping
+            .keysyms
+            .chunks(per)
+            .position(|syms| syms.contains(&keysym))
+            .and_then(|index| u8::try_from(index).ok())
+            .map(|index| min + index)
+    }
+
+    fn fake(x11: &X11, kind: u8, detail: u8, x: i16, y: i16) -> Result<(), AdapterError> {
+        x11.conn
+            .xtest_fake_input(kind, detail, 0, x11.root, x, y, 0)
+            .map_err(error)?;
+        x11.conn.flush().map_err(error)
+    }
+
+    fn error(error: impl std::fmt::Display) -> AdapterError {
+        AdapterError(format!("X11: {error}"))
+    }
+}
+
+pub use input::Input;

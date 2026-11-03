@@ -2,7 +2,9 @@
 //! implements the same small surface for one OS, and everything above this
 //! module is platform-independent.
 
-use crate::adapter::AdapterError;
+use std::time::Duration;
+
+use crate::adapter::{AdapterError, InputUnavailable, NudgeKind};
 
 #[cfg(target_os = "linux")]
 mod linux;
@@ -60,15 +62,98 @@ impl PowerAssertion {
 pub const POWER_ASSERTION_SUPPORTED: bool =
     cfg!(any(windows, target_os = "macos", target_os = "linux"));
 
+/// Synthetic input for the nudge, and the OS's idle timer (SPEC FR-7, FR-8).
+///
+/// Every nudge leaves the pointer exactly where it was and types nothing
+/// (SPEC FR-9). Nothing here reads what the user types: only the time since
+/// the last input event (NFR-2).
+pub struct Input {
+    inner: sys::Input,
+}
+
+impl Input {
+    pub fn new() -> Self {
+        Self {
+            inner: sys::Input::new(),
+        }
+    }
+
+    /// `Err` with the reason when nudges cannot be sent right now. Cheap
+    /// enough to call on every status read: on macOS the permission can be
+    /// granted while the app runs.
+    pub fn availability(&self) -> Result<(), InputUnavailable> {
+        self.inner.availability()
+    }
+
+    pub fn nudge(&mut self, kind: NudgeKind) -> Result<(), AdapterError> {
+        self.availability()
+            .map_err(|reason| AdapterError(format!("Input nudge unavailable: {reason:?}")))?;
+        match kind {
+            NudgeKind::Pointer => self.inner.nudge_pointer(),
+            NudgeKind::Keystroke => self.inner.nudge_key(),
+        }
+    }
+
+    pub fn idle_time(&mut self) -> Option<Duration> {
+        self.inner.idle_time()
+    }
+}
+
+impl Default for Input {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// macOS only: shows the system prompt that adds the app to the
+/// Accessibility list. Does nothing elsewhere. Returns whether the
+/// permission is already granted.
+pub fn request_input_permission() -> bool {
+    #[cfg(target_os = "macos")]
+    return macos::request_accessibility();
+    #[cfg(not(target_os = "macos"))]
+    return true;
+}
+
+/// macOS only: opens System Settings at the Accessibility pane (SPEC PB-2).
+pub fn open_input_permission_settings() -> Result<(), AdapterError> {
+    #[cfg(target_os = "macos")]
+    return macos::open_accessibility_settings();
+    #[cfg(not(target_os = "macos"))]
+    return Ok(());
+}
+
 #[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]
 mod sys {
-    use super::{AdapterError, PowerOptions};
+    use std::time::Duration;
+
+    use super::{AdapterError, InputUnavailable, PowerOptions};
 
     pub struct PowerAssertion;
 
     impl PowerAssertion {
         pub fn acquire(_: PowerOptions) -> Result<Self, AdapterError> {
             Err(AdapterError("Unsupported operating system".into()))
+        }
+    }
+
+    pub struct Input;
+
+    impl Input {
+        pub fn new() -> Self {
+            Self
+        }
+        pub fn availability(&self) -> Result<(), InputUnavailable> {
+            Err(InputUnavailable::Unsupported)
+        }
+        pub fn nudge_pointer(&mut self) -> Result<(), AdapterError> {
+            Err(AdapterError("Unsupported operating system".into()))
+        }
+        pub fn nudge_key(&mut self) -> Result<(), AdapterError> {
+            Err(AdapterError("Unsupported operating system".into()))
+        }
+        pub fn idle_time(&mut self) -> Option<Duration> {
+            None
         }
     }
 }

@@ -9,7 +9,9 @@
 //! `PowerRequestSystemRequired` only blocks *idle* sleep. Closing the lid or
 //! choosing Sleep still works (SPEC PB-4). Away mode is never requested.
 
-use windows_sys::Win32::Foundation::{CloseHandle, HANDLE, INVALID_HANDLE_VALUE};
+use std::time::Duration;
+
+use windows_sys::Win32::Foundation::{CloseHandle, HANDLE, INVALID_HANDLE_VALUE, POINT};
 use windows_sys::Win32::System::Power::{
     POWER_REQUEST_TYPE, PowerClearRequest, PowerCreateRequest, PowerRequestDisplayRequired,
     PowerRequestSystemRequired, PowerSetRequest,
@@ -18,8 +20,15 @@ use windows_sys::Win32::System::Threading::{
     POWER_REQUEST_CONTEXT_SIMPLE_STRING, REASON_CONTEXT, REASON_CONTEXT_0,
 };
 
+use windows_sys::Win32::System::SystemInformation::GetTickCount;
+use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
+    GetLastInputInfo, INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYBD_EVENT_FLAGS, KEYBDINPUT,
+    KEYEVENTF_KEYUP, LASTINPUTINFO, MOUSEEVENTF_MOVE, MOUSEINPUT, SendInput, VIRTUAL_KEY, VK_F15,
+};
+use windows_sys::Win32::UI::WindowsAndMessaging::{GetCursorPos, SetCursorPos};
+
 use super::{PowerOptions, REASON};
-use crate::adapter::AdapterError;
+use crate::adapter::{AdapterError, InputUnavailable};
 
 const POWER_REQUEST_CONTEXT_VERSION: u32 = 0;
 
@@ -83,4 +92,105 @@ fn last_error(call: &str) -> AdapterError {
         "{call} failed: {}",
         std::io::Error::last_os_error()
     ))
+}
+
+/// Input through `SendInput`, idle time through `GetLastInputInfo`.
+pub struct Input;
+
+impl Input {
+    pub fn new() -> Self {
+        Self
+    }
+
+    pub fn availability(&self) -> Result<(), InputUnavailable> {
+        Ok(())
+    }
+
+    /// A relative move of 1 px and back. Pointer acceleration can turn a
+    /// 1 px move into 0 or 2 px, so the start position is restored exactly
+    /// afterwards if the pair did not cancel out.
+    pub fn nudge_pointer(&mut self) -> Result<(), AdapterError> {
+        let start = cursor_position()?;
+        send(&[mouse_move(1), mouse_move(-1)])?;
+        let end = cursor_position()?;
+        if (end.x, end.y) != (start.x, start.y) {
+            unsafe { SetCursorPos(start.x, start.y) };
+        }
+        Ok(())
+    }
+
+    /// F15 down and up. It types nothing and has no default action.
+    pub fn nudge_key(&mut self) -> Result<(), AdapterError> {
+        send(&[key(VK_F15, 0), key(VK_F15, KEYEVENTF_KEYUP)])
+    }
+
+    pub fn idle_time(&mut self) -> Option<Duration> {
+        let mut info = LASTINPUTINFO {
+            cbSize: size_of::<LASTINPUTINFO>() as u32,
+            dwTime: 0,
+        };
+        if unsafe { GetLastInputInfo(&mut info) } == 0 {
+            return None;
+        }
+        // Both are milliseconds since boot and wrap together every 49.7 days.
+        let now = unsafe { GetTickCount() };
+        Some(Duration::from_millis(u64::from(
+            now.wrapping_sub(info.dwTime),
+        )))
+    }
+}
+
+fn cursor_position() -> Result<POINT, AdapterError> {
+    let mut point = POINT { x: 0, y: 0 };
+    if unsafe { GetCursorPos(&mut point) } == 0 {
+        return Err(last_error("GetCursorPos"));
+    }
+    Ok(point)
+}
+
+fn mouse_move(dx: i32) -> INPUT {
+    INPUT {
+        r#type: INPUT_MOUSE,
+        Anonymous: INPUT_0 {
+            mi: MOUSEINPUT {
+                dx,
+                dy: 0,
+                mouseData: 0,
+                dwFlags: MOUSEEVENTF_MOVE,
+                time: 0,
+                dwExtraInfo: 0,
+            },
+        },
+    }
+}
+
+fn key(vk: VIRTUAL_KEY, flags: KEYBD_EVENT_FLAGS) -> INPUT {
+    INPUT {
+        r#type: INPUT_KEYBOARD,
+        Anonymous: INPUT_0 {
+            ki: KEYBDINPUT {
+                wVk: vk,
+                wScan: 0,
+                dwFlags: flags,
+                time: 0,
+                dwExtraInfo: 0,
+            },
+        },
+    }
+}
+
+fn send(inputs: &[INPUT]) -> Result<(), AdapterError> {
+    let sent = unsafe {
+        SendInput(
+            inputs.len() as u32,
+            inputs.as_ptr(),
+            size_of::<INPUT>() as i32,
+        )
+    };
+    // Fewer events than asked means Windows blocked them, for example on the
+    // lock screen or over an elevated window.
+    if sent as usize != inputs.len() {
+        return Err(last_error("SendInput"));
+    }
+    Ok(())
 }

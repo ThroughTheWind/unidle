@@ -7,5 +7,7 @@ export const strings = {
   stopped: "Stopped",
   keepingAwake: "Keeping your computer awake",
   notImplemented: "Preview build: not keeping your computer awake yet",
+  inputUnavailable: "Input simulation unavailable: keeping the system awake only.",
+  openAccessibility: "Open Accessibility settings",
   scheduleSoon: "Schedule (coming soon)",
 } as const;

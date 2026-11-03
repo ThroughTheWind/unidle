@@ -25,12 +25,20 @@ struct ScreenSaver(Shared);
 #[interface(name = "org.freedesktop.ScreenSaver")]
 impl ScreenSaver {
     fn inhibit(&self, app: &str, _reason: &str) -> u32 {
-        self.0.lock().unwrap().calls.push(format!("ss.inhibit {app}"));
+        self.0
+            .lock()
+            .unwrap()
+            .calls
+            .push(format!("ss.inhibit {app}"));
         7
     }
 
     fn un_inhibit(&self, cookie: u32) {
-        self.0.lock().unwrap().calls.push(format!("ss.uninhibit {cookie}"));
+        self.0
+            .lock()
+            .unwrap()
+            .calls
+            .push(format!("ss.uninhibit {cookie}"));
     }
 }
 
@@ -39,12 +47,20 @@ struct Gnome(Shared);
 #[interface(name = "org.gnome.SessionManager")]
 impl Gnome {
     fn inhibit(&self, _app: &str, _xid: u32, _reason: &str, flags: u32) -> u32 {
-        self.0.lock().unwrap().calls.push(format!("gnome.inhibit {flags}"));
+        self.0
+            .lock()
+            .unwrap()
+            .calls
+            .push(format!("gnome.inhibit {flags}"));
         9
     }
 
     fn uninhibit(&self, cookie: u32) {
-        self.0.lock().unwrap().calls.push(format!("gnome.uninhibit {cookie}"));
+        self.0
+            .lock()
+            .unwrap()
+            .calls
+            .push(format!("gnome.uninhibit {cookie}"));
     }
 }
 
@@ -53,7 +69,11 @@ struct Logind(Shared);
 #[interface(name = "org.freedesktop.login1.Manager")]
 impl Logind {
     fn inhibit(&self, what: &str, _who: &str, _why: &str, mode: &str) -> OwnedFd {
-        self.0.lock().unwrap().calls.push(format!("logind.inhibit {what} {mode}"));
+        self.0
+            .lock()
+            .unwrap()
+            .calls
+            .push(format!("logind.inhibit {what} {mode}"));
         let file = std::fs::File::open("/dev/null").unwrap();
         OwnedFd::from(std::os::fd::OwnedFd::from(file))
     }

@@ -2,7 +2,7 @@
 
 A small, open-source desktop app for Windows, macOS and Linux that keeps your computer awake with one ON/OFF toggle.
 
-> **Status: in development.** Turning ON keeps the computer awake with an OS power assertion. Input nudges, the tray icon and settings are still to come. See the [roadmap](docs/ROADMAP.md).
+> **Status: in development.** Turning ON keeps the computer awake and sends input nudges. The tray icon and settings are still to come. See the [roadmap](docs/ROADMAP.md).
 
 ## What it will do
 
