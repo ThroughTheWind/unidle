@@ -7,13 +7,14 @@ Things noticed while doing something else. **A finding is the observation; a wor
 decision.** Recording one must cost almost nothing, or it will not happen — so a finding is a
 **row**, not a file. Items are files; findings are rows. The asymmetry is deliberate.
 
-<!-- NEXT-ID: F-003 -->
+<!-- NEXT-ID: F-005 -->
 
 ## Open
 
 | Id | Sev | Pri | What | Evidence | When to act | How to fix |
 | --- | --- | --- | --- | --- | --- | --- |
-| — | | | *nothing open* | | | |
+| F-003 | medium | next | Turning ON fails silently in the window: the toggle stays OFF and nothing says why | Xvfb run without any D-Bus inhibitor, 2026-11-03: `set_active` returned an error and `ui/src/main.ts` drops the rejected promise | With the window UI work | Catch the error in the toggle handler and show it in the status line |
+| F-004 | low | next | Launching the app twice gives two tray icons and two controllers | `src-tauri/src/main.rs` has no single-instance guard | Before the v1.0 release | Add `tauri-plugin-single-instance` and show the existing window on a second launch |
 
 ## Closed
 
