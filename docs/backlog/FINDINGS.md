@@ -13,14 +13,14 @@ decision.** Recording one must cost almost nothing, or it will not happen — so
 
 | Id | Sev | Pri | What | Evidence | When to act | How to fix |
 | --- | --- | --- | --- | --- | --- | --- |
-| F-002 | medium | next | The app exceeds the 80 MB memory limit (SPEC NFR-1) while its window is open, and meets it once the webview is closed | Windows 11 release build, whole process tree, 2026-11-03: window open 155 MB private and 338 MB working set; webview destroyed 6 MB private and 27 MB working set | Before WI-004 builds the final window | Apply the limit to the tray-only state in NFR-1 if Antoine agrees, and always destroy the webview when the window closes |
-| F-001 | low | next | The spec and the design system disagree on the main window size | `docs/SPEC.md` FR-11 says about 320×240, `docs/design/DESIGN_SYSTEM.md` says 360×420. The skeleton uses 360×420 because the design's contents don't fit in 240 px high | Before WI-004 builds the final window | Change FR-11 to 360×420 if Antoine agrees |
+| — | | | *nothing open* | | | |
 
 ## Closed
 
 | Id | What | Disposition | Reason |
 | --- | --- | --- | --- |
-| — | | | |
+| F-001 | The spec and the design system disagreed on the main window size | fixed | Antoine chose 360×420 on 2026-11-03, and SPEC FR-11 now says so |
+| F-002 | The app exceeded the 80 MB memory limit while its window was open | promoted | Antoine agreed on 2026-11-03 that the limit applies only while hidden in the tray, and SPEC NFR-1 now says so. WI-004 takes the required webview release when the window closes |
 
 ---
 

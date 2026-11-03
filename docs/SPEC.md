@@ -76,7 +76,7 @@ v1 is intentionally minimal: one toggle, sensible defaults, no account, no netwo
 - **FR-10** When turned OFF (or when the app quits), the power assertion is released and nudges stop immediately.
 
 ### 5.3 Main window
-- **FR-11** A single small window (about 320×240) containing: app name, the large toggle, status line (state and elapsed time), and a link to Settings.
+- **FR-11** A single small window (360×420, per the design system) containing: app name, the large toggle, status line (state and elapsed time), and a link to Settings.
 - **FR-12** Closing the window hides it to the tray; it does not quit the app. The first time this happens, show a one-time notice ("Still running in the tray").
 - **FR-13** "Quit" lives in the tray menu and the app menu. Quitting while ON turns simulation OFF first.
 
@@ -114,7 +114,7 @@ Rules:
 
 ## 7. Non-functional requirements
 
-- **NFR-1 Footprint:** idle CPU under 0.5%, memory under 80 MB (target under 30 MB), installer under 20 MB.
+- **NFR-1 Footprint:** idle CPU under 0.5%, installer under 20 MB, and memory under 80 MB (target under 30 MB) while hidden in the tray. The memory limit doesn't apply while the window is open, so closing the window must release the webview.
 - **NFR-2 Privacy:** no network access at all in v1 (no telemetry, no update checks without explicit opt-in). No logging of user input.
 - **NFR-3 Reliability:** runs for 7+ days ON without memory growth or missed nudges.
 - **NFR-4 Accessibility:** full keyboard operation of the window, screen-reader labels on the toggle and status, state never conveyed by color alone, respects OS dark/light mode and reduced motion.
