@@ -23,12 +23,13 @@ use windows_sys::Win32::System::Threading::{
 use windows_sys::Win32::System::SystemInformation::GetTickCount;
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
     GetLastInputInfo, INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYBD_EVENT_FLAGS, KEYBDINPUT,
-    KEYEVENTF_KEYUP, LASTINPUTINFO, MOUSEEVENTF_MOVE, MOUSEINPUT, SendInput, VIRTUAL_KEY, VK_F15,
+    KEYEVENTF_KEYUP, LASTINPUTINFO, MOUSEEVENTF_MOVE, MOUSEINPUT, SendInput, VIRTUAL_KEY, VK_F13,
+    VK_F15, VK_F16, VK_F17, VK_F18, VK_F19, VK_F20, VK_SHIFT,
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{GetCursorPos, SetCursorPos};
 
 use super::{PowerOptions, REASON};
-use crate::adapter::{AdapterError, InputUnavailable};
+use crate::adapter::{AdapterError, InputUnavailable, NudgeKey};
 
 const POWER_REQUEST_CONTEXT_VERSION: u32 = 0;
 
@@ -119,9 +120,19 @@ impl Input {
         Ok(())
     }
 
-    /// F15 down and up. It types nothing and has no default action.
-    pub fn nudge_key(&mut self) -> Result<(), AdapterError> {
-        send(&[key(VK_F15, 0), key(VK_F15, KEYEVENTF_KEYUP)])
+    /// The key down and up. None of the allowed keys types anything.
+    pub fn nudge_key(&mut self, nudge_key: NudgeKey) -> Result<(), AdapterError> {
+        let vk = match nudge_key {
+            NudgeKey::F13 => VK_F13,
+            NudgeKey::F15 => VK_F15,
+            NudgeKey::F16 => VK_F16,
+            NudgeKey::F17 => VK_F17,
+            NudgeKey::F18 => VK_F18,
+            NudgeKey::F19 => VK_F19,
+            NudgeKey::F20 => VK_F20,
+            NudgeKey::Shift => VK_SHIFT,
+        };
+        send(&[key(vk, 0), key(vk, KEYEVENTF_KEYUP)])
     }
 
     pub fn idle_time(&mut self) -> Option<Duration> {

@@ -30,8 +30,85 @@ pub struct Capabilities {
 pub enum NudgeKind {
     /// Move the pointer 1 px and straight back.
     Pointer,
-    /// Press and release a key that types nothing and has no default action.
+    /// Press and release the configured [`NudgeKey`].
     Keystroke,
+}
+
+/// Keys a keystroke nudge may press: none of them types a character or has a
+/// default action (SPEC FR-7). The list is closed on purpose, so no setting
+/// can make the nudge press a key that does something.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum NudgeKey {
+    F13,
+    F15,
+    F16,
+    F17,
+    F18,
+    F19,
+    F20,
+    Shift,
+}
+
+impl NudgeKey {
+    pub const ALL: [NudgeKey; 8] = [
+        NudgeKey::F13,
+        NudgeKey::F15,
+        NudgeKey::F16,
+        NudgeKey::F17,
+        NudgeKey::F18,
+        NudgeKey::F19,
+        NudgeKey::F20,
+        NudgeKey::Shift,
+    ];
+
+    /// F15 on Windows and Linux, Shift on macOS (SPEC FR-7).
+    pub const fn platform_default() -> Self {
+        if cfg!(target_os = "macos") {
+            NudgeKey::Shift
+        } else {
+            NudgeKey::F15
+        }
+    }
+
+    /// macOS maps F14 and F15 to display brightness on many keyboards, so
+    /// F15 is refused there. F14 is not offered anywhere for the same reason.
+    pub const fn is_safe_here(self) -> bool {
+        !(cfg!(target_os = "macos") && matches!(self, NudgeKey::F15))
+    }
+
+    /// The key itself if it is safe on this OS, otherwise the default.
+    pub const fn or_safe_default(self) -> Self {
+        if self.is_safe_here() {
+            self
+        } else {
+            Self::platform_default()
+        }
+    }
+
+    pub const fn name(self) -> &'static str {
+        match self {
+            NudgeKey::F13 => "F13",
+            NudgeKey::F15 => "F15",
+            NudgeKey::F16 => "F16",
+            NudgeKey::F17 => "F17",
+            NudgeKey::F18 => "F18",
+            NudgeKey::F19 => "F19",
+            NudgeKey::F20 => "F20",
+            NudgeKey::Shift => "Shift",
+        }
+    }
+
+    pub fn from_name(name: &str) -> Option<Self> {
+        Self::ALL
+            .into_iter()
+            .find(|key| key.name().eq_ignore_ascii_case(name))
+    }
+}
+
+impl Default for NudgeKey {
+    fn default() -> Self {
+        Self::platform_default()
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

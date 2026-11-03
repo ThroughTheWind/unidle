@@ -6,7 +6,7 @@
 The board. One row per live work item, grouped by status. Items live in
 [`items/`](items/); finished work moves to [`archive/`](archive/).
 
-<!-- NEXT-ID: WI-005 -->
+<!-- NEXT-ID: WI-006 -->
 <!-- Claim from this marker and bump it on your own branch. `node .ai/rungs.mjs check` refuses a duplicate. -->
 
 ## In progress
@@ -22,6 +22,7 @@ The board. One row per live work item, grouped by status. Items live in
 | [WI-001](items/WI-001-power-assertion-spike.md) | Prove the power assertion on all three platforms | spike | `feature/WI-001-power-assertion` |
 | [WI-002](items/WI-002-input-nudge-spike.md) | Prove pointer and keystroke nudges on all three platforms | spike | `feature/WI-002-input-nudge` |
 | [WI-004](items/WI-004-tray-and-window-lifecycle.md) | Add the tray icon and hide-to-tray window lifecycle | feature | `feature/WI-004-tray-and-window` |
+| [WI-005](items/WI-005-settings.md) | Store settings and apply them, with launch at login and a global shortcut | feature | `feature/WI-005-settings` |
 
 ## Planned
 

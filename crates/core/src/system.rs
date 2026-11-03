@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::adapter::{AdapterError, Capabilities, NudgeKind, PlatformAdapter};
+use crate::adapter::{AdapterError, Capabilities, NudgeKey, NudgeKind, PlatformAdapter};
 use crate::platform::{Input, POWER_ASSERTION_SUPPORTED, PowerAssertion, PowerOptions};
 
 /// The real adapter: holds an OS power assertion while ON, and sends input
@@ -36,6 +36,16 @@ impl SystemAdapter {
         }
         self.options = options;
         Ok(())
+    }
+
+    pub fn nudge_key(&self) -> NudgeKey {
+        self.input.key()
+    }
+
+    /// Takes effect from the next keystroke nudge. A key that is unsafe on
+    /// this OS is replaced by the default.
+    pub fn set_nudge_key(&mut self, key: NudgeKey) {
+        self.input.set_key(key);
     }
 
     pub fn is_holding(&self) -> bool {

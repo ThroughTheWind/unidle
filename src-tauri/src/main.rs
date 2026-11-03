@@ -1,6 +1,7 @@
 // No console window on Windows in release builds.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod settings;
 mod strings;
 mod tray;
 mod window;
@@ -11,19 +12,26 @@ use std::time::Duration;
 
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, RunEvent, State, WindowEvent};
-use unidle_core::{Controller, InputUnavailable, Source, Status, SystemAdapter, Ticker};
+use tauri_plugin_global_shortcut::ShortcutState;
+use tauri_plugin_notification::NotificationExt as _;
+use unidle_core::{
+    Controller, InputUnavailable, NudgeKey, Settings, Source, Status, SystemAdapter, Ticker,
+};
 
 /// Emitted to the window whenever the state changes outside it, such as
 /// from the tray.
 const STATUS_EVENT: &str = "status-changed";
 /// How often the tray's "ON for …" line is refreshed.
 const TRAY_REFRESH: Duration = Duration::from_secs(30);
+/// Passed by the login item, so a launch at login starts in the tray.
+const HIDDEN_ARG: &str = "--hidden";
 
 struct App {
     controller: Arc<Mutex<Controller<SystemAdapter>>>,
     ticker: Ticker,
     /// Set by an explicit quit, so the app exits instead of staying in the tray.
     quitting: AtomicBool,
+    settings: Mutex<Settings>,
 }
 
 impl App {
@@ -31,6 +39,12 @@ impl App {
         // A poisoned lock means a panic mid-update; the state itself is still
         // the best record of whether the assertion is held.
         self.controller
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
+    fn settings(&self) -> MutexGuard<'_, Settings> {
+        self.settings
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
     }
@@ -96,6 +110,23 @@ fn set_active(app: &AppHandle, on: bool) -> Result<Status, String> {
     tray::refresh(app, &status);
     let _ = app.emit(STATUS_EVENT, StatusDto::from(status));
     result.map_err(|error| error.to_string())?;
+
+    let notify = state.settings().notify_on_change;
+    if state.settings().last_state_on != status.is_on() {
+        settings::record(app, |settings| settings.last_state_on = status.is_on());
+    }
+    // Optional, off by default (SPEC FR-16).
+    if notify {
+        let _ = app
+            .notification()
+            .builder()
+            .title(if status.is_on() {
+                strings::TOOLTIP_ON
+            } else {
+                strings::TOOLTIP_OFF
+            })
+            .show();
+    }
     Ok(status)
 }
 
@@ -120,6 +151,31 @@ fn get_status(app: State<'_, App>) -> StatusDto {
 #[tauri::command(rename = "set_active")]
 fn set_active_command(on: bool, app: AppHandle) -> Result<StatusDto, String> {
     set_active(&app, on).map(StatusDto::from)
+}
+
+#[tauri::command]
+fn get_settings(app: State<'_, App>) -> Settings {
+    app.settings().clone()
+}
+
+/// Takes any subset of the settings fields, in camelCase.
+#[tauri::command]
+fn update_settings(patch: serde_json::Value, app: AppHandle) -> Result<Settings, String> {
+    let settings = settings::update(&app, patch)?;
+    let status = app.state::<App>().controller().status();
+    tray::refresh(&app, &status);
+    let _ = app.emit(STATUS_EVENT, StatusDto::from(status));
+    Ok(settings)
+}
+
+/// The keys a keystroke nudge may use on this OS, for the settings screen.
+#[tauri::command]
+fn nudge_keys() -> Vec<&'static str> {
+    NudgeKey::ALL
+        .into_iter()
+        .filter(|key| key.is_safe_here())
+        .map(NudgeKey::name)
+        .collect()
 }
 
 #[tauri::command]
@@ -181,6 +237,22 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let menu = tray::create(&handle)?;
     app.manage(menu);
 
+    let loaded = settings::load(&handle);
+    *app.state::<App>().settings() = loaded.clone();
+    if let Err(error) = settings::apply_to_controller(&handle, &loaded) {
+        eprintln!("settings: {error}");
+    }
+    if let Err(error) = settings::apply_shortcut(&handle, loaded.global_shortcut.as_deref()) {
+        eprintln!("settings: {error}");
+    }
+    if loaded.start_on() {
+        let _ = set_active(&handle, true);
+    }
+    // A launch at login stays in the tray; any other launch shows the window.
+    if !std::env::args().any(|arg| arg == HIDDEN_ARG) {
+        window::show(&handle);
+    }
+
     // Keeps the tray's "ON for …" line current while ON.
     let refresher = handle.clone();
     std::thread::Builder::new()
@@ -203,10 +275,24 @@ fn main() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            Some(vec![HIDDEN_ARG]),
+        ))
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|app, _, event| {
+                    if event.state == ShortcutState::Pressed {
+                        toggle(app);
+                    }
+                })
+                .build(),
+        )
         .manage(App {
             controller,
             ticker,
             quitting: AtomicBool::new(false),
+            settings: Mutex::new(Settings::default()),
         })
         .setup(setup)
         .on_window_event(|window, event| {
@@ -217,6 +303,9 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             get_status,
             set_active_command,
+            get_settings,
+            update_settings,
+            nudge_keys,
             open_input_permission_settings
         ])
         .build(tauri::generate_context!())

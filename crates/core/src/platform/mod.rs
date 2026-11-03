@@ -4,7 +4,7 @@
 
 use std::time::Duration;
 
-use crate::adapter::{AdapterError, InputUnavailable, NudgeKind};
+use crate::adapter::{AdapterError, InputUnavailable, NudgeKey, NudgeKind};
 
 #[cfg(target_os = "linux")]
 mod linux;
@@ -69,13 +69,24 @@ pub const POWER_ASSERTION_SUPPORTED: bool =
 /// the last input event (NFR-2).
 pub struct Input {
     inner: sys::Input,
+    key: NudgeKey,
 }
 
 impl Input {
     pub fn new() -> Self {
         Self {
             inner: sys::Input::new(),
+            key: NudgeKey::platform_default(),
         }
+    }
+
+    pub fn key(&self) -> NudgeKey {
+        self.key
+    }
+
+    /// An unsafe key for this OS is replaced by the default.
+    pub fn set_key(&mut self, key: NudgeKey) {
+        self.key = key.or_safe_default();
     }
 
     /// `Err` with the reason when nudges cannot be sent right now. Cheap
@@ -90,7 +101,7 @@ impl Input {
             .map_err(|reason| AdapterError(format!("Input nudge unavailable: {reason:?}")))?;
         match kind {
             NudgeKind::Pointer => self.inner.nudge_pointer(),
-            NudgeKind::Keystroke => self.inner.nudge_key(),
+            NudgeKind::Keystroke => self.inner.nudge_key(self.key),
         }
     }
 
@@ -149,7 +160,7 @@ mod sys {
         pub fn nudge_pointer(&mut self) -> Result<(), AdapterError> {
             Err(AdapterError("Unsupported operating system".into()))
         }
-        pub fn nudge_key(&mut self) -> Result<(), AdapterError> {
+        pub fn nudge_key(&mut self, _: super::NudgeKey) -> Result<(), AdapterError> {
             Err(AdapterError("Unsupported operating system".into()))
         }
         pub fn idle_time(&mut self) -> Option<Duration> {
