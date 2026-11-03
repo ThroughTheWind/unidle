@@ -76,7 +76,7 @@ v1 is intentionally minimal: one toggle, sensible defaults, no account, no netwo
 - **FR-10** When turned OFF (or when the app quits), the power assertion is released and nudges stop immediately.
 
 ### 5.3 Main window
-- **FR-11** A single small window (360×420, per the design system) containing: app name, the large toggle, status line (state and elapsed time), and a link to Settings.
+- **FR-11** A single small window (360×420, per the design system) containing: app name, the large toggle, status line (state and elapsed time), a link to Settings, and a "Check for new versions" icon button. The Settings screen adds a "Website" icon button. Both open the page in the default browser; the app itself makes no request (NFR-2).
 - **FR-12** Closing the window hides it to the tray; it does not quit the app. The first time this happens, show a one-time notice ("Still running in the tray").
 - **FR-13** "Quit" lives in the tray menu and the app menu. Quitting while ON turns simulation OFF first.
 

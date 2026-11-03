@@ -6,6 +6,7 @@ This project follows [Semantic Versioning](https://semver.org).
 
 ### Added
 
+- A "Check for new versions" icon next to Settings opens the releases page in your browser, and Settings adds a link to the website. The app still makes no network request itself.
 - The window has a new power button, in four styles to pick from in Settings: Halo (the default), Orbit, Pulse and Wake eye. A Settings screen now covers every setting, including recording a global shortcut. If turning ON fails, the window says why instead of staying silent. The Geist fonts ship with the app.
 - Landing page in `site/` with per-OS download links, deployed to GitHub Pages.
 - Opening the app while it's already running shows its window instead of starting a second copy.

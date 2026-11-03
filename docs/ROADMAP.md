@@ -106,7 +106,7 @@ Each phase ships a usable, released version. Phases are ordered by value and ris
 
 | Feature | Size | Priority |
 |---|---|---|
-| Opt-in auto-update (signed release feed) | M | Should |
+| Opt-in auto-update (signed release feed). Options and spec changes: [update-check study](studies/update-check.md) | M | Should |
 | Code signing and notarization on all platforms | M | Should (depends on budget) |
 | Package managers: winget, Homebrew cask, Flathub, AUR, Snap | M | Should |
 | Localization: French first, then community translations | S | Should |

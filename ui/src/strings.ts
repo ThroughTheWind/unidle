@@ -61,4 +61,7 @@ export const strings = {
   shortcutNeedsModifier: "Use at least one of Ctrl, Alt, Shift or Super with a key",
   shortcutClear: "Clear",
   version: (version: string) => `Unidle ${version}`,
+  // Icon buttons in the bar. Both open a page in the browser; the app itself makes no network request (SPEC NFR-2).
+  checkUpdates: "Check for new versions",
+  website: "Website",
 } as const;
