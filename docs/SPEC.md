@@ -1,4 +1,4 @@
-# Activity Simulator: Product Specification
+# Unidle: Product Specification
 
 | | |
 |---|---|
@@ -7,13 +7,13 @@
 | Owner | Antoine (`@ThroughTheWind`) |
 | Scope | v1 (ON/OFF toggle). Scheduling is Phase 2 and described separately below. |
 
-> Working name: **Activity Simulator**. A final product name is still open (see §12).
+> Product name: **Unidle**.
 
 ---
 
 ## 1. Summary
 
-Activity Simulator is a small, open-source, cross-platform desktop application that keeps a computer "awake" by simulating user activity. It packages a simple wake-up routine behind a single **ON/OFF** control. When ON, the app stops the OS from going idle: no screensaver, no display sleep, no system sleep, and no "Away" status in chat apps that watch for input. When OFF, the machine behaves normally.
+Unidle is a small, open-source, cross-platform desktop application that keeps a computer "awake" by simulating user activity. It packages a simple wake-up routine behind a single **ON/OFF** control. When ON, the app stops the OS from going idle: no screensaver, no display sleep, no system sleep, and no "Away" status in chat apps that watch for input. When OFF, the machine behaves normally.
 
 v1 is intentionally minimal: one toggle, sensible defaults, no account, no network access.
 
@@ -62,7 +62,7 @@ v1 is intentionally minimal: one toggle, sensible defaults, no account, no netwo
   - the main window's large toggle button,
   - an optional global keyboard shortcut (default unset; configurable in settings).
 - **FR-3** State changes take effect within **1 second**.
-- **FR-4** The tray icon visibly differs between ON and OFF (shape, not color alone), and its tooltip reads "Activity Simulator: ON" or "Activity Simulator: OFF".
+- **FR-4** The tray icon visibly differs between ON and OFF (shape, not color alone), and its tooltip reads "Unidle: ON" or "Unidle: OFF".
 - **FR-5** While ON, the main window and tray menu show elapsed time since it was turned on ("ON for 1 h 12 min").
 
 ### 5.2 Activity simulation
@@ -123,14 +123,14 @@ Rules:
 
 ## 8. Distribution and open source
 
-- **License:** MIT (proposed; Apache-2.0 is the alternative if patent language is wanted).
-- **Repository:** public on GitHub, with README, LICENSE, CONTRIBUTING, CODE_OF_CONDUCT, issue and PR templates, and this spec under `docs/`.
+- **License:** MIT.
+- **Repository:** public on GitHub at [`ThroughTheWind/unidle`](https://github.com/ThroughTheWind/unidle), with README, LICENSE, CONTRIBUTING, CODE_OF_CONDUCT, issue and PR templates, and this spec under `docs/`.
 - **Builds:** CI produces installers for each platform on tagged releases, attached to GitHub Releases:
   - Windows: `.msi` or `.exe` installer (plus portable `.zip` if cheap).
   - macOS: universal `.dmg` (Apple Silicon and Intel). Signed and notarized when a developer ID is available; until then, document the Gatekeeper bypass.
   - Linux: `.AppImage` and `.deb` at minimum.
 - **Versioning:** SemVer, with a CHANGELOG.
-- **Repo location:** `activity-simulator` (local clone at `C:\Development\Repositories\activity-simulator`), with the `rungs` agentic dev system (`@rungs/cli`) installed into it. `rungs` is development tooling only and is not shipped in the app.
+- **Development tooling:** the `rungs` agentic dev system (`@rungs/cli`) is installed into the repo. It is development tooling only and is not shipped in the app.
 - **Stack ([ADR-0001](decisions/ADR-0001-tauri-with-rust-core.md)):** Tauri 2 with a Rust core. The simulation core and platform adapters (§11) are a Rust crate, and the UI shell is the Tauri webview. Final repo layout is defined by the stack/repo-setup work. UI follows the project design system.
 
 ## 9. Acceptance criteria (v1)
@@ -160,16 +160,16 @@ Planned capabilities:
 ## 11. Architecture constraints (stack-agnostic)
 
 These constraints apply whatever stack is chosen:
-- Separate the **simulation core** (platform adapters for power assertion and input nudge) from the **UI shell**, so the core is unit-testable and could also ship as a CLI (`activity-sim on|off|status`).
+- Separate the **simulation core** (platform adapters for power assertion and input nudge) from the **UI shell**, so the core is unit-testable and could also ship as a CLI (`unidle on|off|status`).
 - One **controller** owns the state machine: `OFF → ON(source) → OFF`, with an event log kept in memory only.
 - Platform adapters expose a common interface: `acquire()`, `release()`, `nudge()`, `capabilities()`.
 - The UI only talks to the controller, never to OS APIs directly.
 
 ## 12. Open questions
 
-1. **Product name.** "Activity Simulator" is a working name. Candidates: Awake, Stay, Nudge, Keepalive.
+1. ~~**Product name.**~~ Resolved: **Unidle**.
 2. ~~**Relationship to "rungs".**~~ Resolved: `rungs` (`@rungs/cli`) is a dev-tooling CLI installed into the repo. It is not a runtime dependency (see §8).
 3. **Default nudge method.** Pointer, keystroke or both?
 4. **Global shortcut default.** Ship unset, or with a default?
 5. **Code signing.** Is budget available for an Apple Developer ID and a Windows code-signing certificate?
-6. **License.** MIT or Apache-2.0?
+6. ~~**License.**~~ Resolved: MIT.

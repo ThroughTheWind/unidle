@@ -3,9 +3,9 @@
 
 use std::sync::Mutex;
 
-use activity_simulator_core::{Controller, NoopAdapter, Source, Status};
 use serde::Serialize;
 use tauri::State;
+use unidle_core::{Controller, NoopAdapter, Source, Status};
 
 // The real platform adapters replace NoopAdapter here.
 type AppController = Mutex<Controller<NoopAdapter>>;

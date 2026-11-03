@@ -1,4 +1,4 @@
-# AGENTS.md — activity-simulator
+# AGENTS.md — unidle
 
 Canonical agent policy for this repository. Read in full before making changes.
 
@@ -20,7 +20,7 @@ everything is slow enough to get skipped; running the wrong subset proves nothin
 
 | Change surface | Run |
 | --- | --- |
-| `crates/core/` | `cargo test -p activity-simulator-core` |
+| `crates/core/` | `cargo test -p unidle-core` |
 | `src-tauri/` | `cargo clippy --workspace --all-targets -- -D warnings` |
 | `ui/` | `npm run build:ui` |
 | `.github/workflows/`, packaging | `npm run build`, and CI on all three OSes |

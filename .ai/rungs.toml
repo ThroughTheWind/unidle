@@ -16,7 +16,7 @@ installed = "2026-11-03"
 [modules.instructions]
 version = "1.4.0"
 state   = "managed"
-params  = { project_name = "activity-simulator", harnesses = ["claude","agents-md"], core_budget = 200 }
+params  = { project_name = "unidle", harnesses = ["claude","agents-md"], core_budget = 200 }
 [modules.instructions.hashes]
 ".ai/rungs.mjs" = "4ff3f1f29bfa"
 ".ai/rules/README.md" = "5435cf6d3287"

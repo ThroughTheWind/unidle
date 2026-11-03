@@ -33,10 +33,10 @@ Accept and plan [WI-001](../docs/backlog/items/WI-001-power-assertion-spike.md).
 
 - `keepawake` and `enigo` can meet the spec on all three OSes. Neither has been tried here.
 - Closing the webview while hidden keeps memory under the spec limit on macOS and Linux too. It was measured only on Windows (F-002).
+- The local folder is still named `unidle`. The repo and everything in it are `unidle`.
 
 ## Open questions
 
-- Non-blocking: the final product name. "Activity Simulator" is a working name.
 - Non-blocking: the other open questions in SPEC §12 and ROADMAP.
 
 ## Archive

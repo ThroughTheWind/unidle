@@ -1,5 +1,5 @@
 [package]
-name = "activity-simulator-core"
+name = "unidle-core"
 description = "Simulation controller and platform adapter interface. No UI or Tauri dependency."
 version.workspace = true
 edition.workspace = true

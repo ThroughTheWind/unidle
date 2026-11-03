@@ -1,6 +1,6 @@
-# Activity Simulator
+# Unidle
 
-A small, open-source desktop app for Windows, macOS and Linux that keeps your computer awake with one ON/OFF toggle. "Activity Simulator" is a working name.
+A small, open-source desktop app for Windows, macOS and Linux that keeps your computer awake with one ON/OFF toggle.
 
 > **Status: early skeleton.** The window and toggle run, but nothing is simulated yet. The app says so when you turn it on. See the [roadmap](docs/ROADMAP.md).
 

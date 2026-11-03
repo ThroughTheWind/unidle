@@ -1,5 +1,5 @@
 [package]
-name = "activity-simulator"
+name = "unidle"
 description = "Keeps your computer awake with one ON/OFF toggle."
 version.workspace = true
 edition.workspace = true
@@ -10,6 +10,6 @@ repository.workspace = true
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-activity-simulator-core = { path = "../crates/core" }
+unidle-core = { path = "../crates/core" }
 serde = { version = "1", features = ["derive"] }
 tauri = { version = "2", features = [] }

@@ -33,7 +33,7 @@ fast_budget_ms = 30000
 id      = "core-tests"
 kind    = "command"
 tier    = "full"
-command = "cargo test -p activity-simulator-core"
+command = "cargo test -p unidle-core"
 why     = "The controller is what guarantees OFF always releases the OS assertion, and the spec makes that the app's core safety property."
 
 [[gates]]

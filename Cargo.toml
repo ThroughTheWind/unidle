@@ -6,7 +6,7 @@ members = ["crates/core", "src-tauri"]
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
-repository = "https://github.com/ThroughTheWind/activity-simulator"
+repository = "https://github.com/ThroughTheWind/unidle"
 
 # Small binary first: the spec caps the installer at 20 MB (NFR-1).
 [profile.release]

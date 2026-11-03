@@ -1,4 +1,4 @@
-# Activity Simulator Design System
+# Unidle Design System
 
 A deliberately tiny system for a single-purpose desktop utility: one window, one big ON/OFF toggle, a status line, and a tray icon. Stack-agnostic. Tokens live in [`tokens.json`](./tokens.json) (W3C Design Tokens format) and are mirrored as CSS variables in [`tokens.css`](./tokens.css). A visual reference is in [`preview.html`](./preview.html).
 
@@ -61,7 +61,7 @@ Fixed small window, 360 × 420, not resizable (or min size).
 
 ```
 ┌──────────────────────────────┐
-│  Activity Simulator      ⚙   │  header: app name + settings
+│  Unidle                  ⚙   │  header: app name + settings
 │                              │
 │          ┌────────┐          │
 │          │ ●──────│          │  hero toggle (88×48)

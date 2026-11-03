@@ -1,6 +1,6 @@
 // All UI text lives here so a translation only has to replace this file (SPEC NFR-5).
 export const strings = {
-  appName: "Activity Simulator",
+  appName: "Unidle",
   toggleLabel: "Simulate activity",
   on: "On",
   off: "Off",

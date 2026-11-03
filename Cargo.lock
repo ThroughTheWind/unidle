@@ -3,20 +3,6 @@
 version = 4
 
 [[package]]
-name = "activity-simulator"
-version = "0.1.0"
-dependencies = [
- "activity-simulator-core",
- "serde",
- "tauri",
- "tauri-build",
-]
-
-[[package]]
-name = "activity-simulator-core"
-version = "0.1.0"
-
-[[package]]
 name = "adler2"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3575,6 +3561,20 @@ name = "unicode-segmentation"
 version = "1.13.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c6f5d3c3b1bf09027a88a6bc961fc00497d651009560b5463668dc81b0fa87a8"
+
+[[package]]
+name = "unidle"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "tauri",
+ "tauri-build",
+ "unidle-core",
+]
+
+[[package]]
+name = "unidle-core"
+version = "0.1.0"
 
 [[package]]
 name = "url"
