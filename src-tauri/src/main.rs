@@ -274,6 +274,11 @@ fn main() {
     let ticker = Ticker::spawn(controller.clone());
 
     tauri::Builder::default()
+        // First, so a second launch exits before it builds a second tray. It
+        // shows the running app's window instead.
+        .plugin(tauri_plugin_single_instance::init(|app, _, _| {
+            window::show(app)
+        }))
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
