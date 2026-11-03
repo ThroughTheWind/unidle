@@ -33,6 +33,7 @@ npm run build
 | `crates/core/` | Simulation controller and platform adapter interface, with no UI dependency |
 | `src-tauri/` | Tauri app shell: window, commands and packaging |
 | `ui/` | Window UI in plain TypeScript, styled with the design tokens |
+| `site/` | One-page landing site, deployed to GitHub Pages by `.github/workflows/pages.yml` |
 | `docs/` | [Spec](docs/SPEC.md), [roadmap](docs/ROADMAP.md), [design system](docs/design/DESIGN_SYSTEM.md), [decisions](docs/decisions/README.md) and [backlog](docs/backlog/BACKLOG.md) |
 | `.ai/`, `.claude/`, `AGENTS.md` | Development system installed by [rungs](https://github.com/ThroughTheWind/rungs). Not shipped in the app |
 

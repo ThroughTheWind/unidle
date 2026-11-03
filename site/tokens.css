@@ -1,0 +1,105 @@
+/* Unidle design tokens. Generated from tokens.json; keep in sync. */
+:root {
+  --font-sans: "Geist", system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  --text-caption: 12px; --text-body: 14px; --text-label: 15px; --text-title: 20px; --text-display: 28px;
+  --weight-regular: 400; --weight-medium: 500; --weight-semibold: 600;
+  --lh-tight: 1.2; --lh-normal: 1.5;
+  --tracking-state: 0.16em;
+
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px; --space-7: 48px;
+  --radius-sm: 6px; --radius-md: 10px; --radius-lg: 14px; --radius-window: 22px; --radius-full: 9999px;
+
+  --duration-fast: 120ms; --duration-base: 180ms; --duration-fill: 500ms; --duration-breathe: 3200ms; --duration-orbit: 2600ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-spring: cubic-bezier(0.3, 1.4, 0.5, 1);
+
+  --window-width: 360px;
+  --window-height: 440px;
+  --halo-size: 172px;
+  --orbit-size: 196px;
+  --pulse-width: 236px;
+  --pulse-height: 104px;
+  --eye-size: 176px;
+  --hit-target: 44px;
+  --tray-icon: 16px;
+
+  /* light theme (default) */
+  --bg: #EEF1F0;
+  --surface: #FBFCFB;
+  --surface-sunken: #F1F4F3;
+  --border: #D5DBD8;
+  --text: #0F1513;
+  --text-muted: #5A6561;
+  --focus: #2563C9;
+  --power-on: #08774F;
+  --power-on-hi: #14A06C;
+  --power-glow: #1FD592;
+  --power-off-face: #E6EAE8;
+  --power-off-ink: #5A6561;
+  --on-accent: #FFFFFF;
+  --status-active: #08774F;
+  --status-idle: #5A6561;
+  --status-scheduled: #2563C9;
+  --status-warning: #8F5C00;
+  --status-error: #C8372B;
+  --shadow-window: 0 1px 0 #FFFFFF inset, 0 24px 48px -24px #0F15132E, 0 2px 6px #0F151314;
+  --shadow-face: inset 0 2px 1px #FFFFFF40, inset 0 -6px 14px #00000014, 0 14px 28px -10px #00000040;
+  --shadow-knob: 0 6px 14px -4px #00000055, 0 1px 0 #FFFFFF inset;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #07090A;
+    --surface: #111614;
+    --surface-sunken: #0B0F0E;
+    --border: #1C2321;
+    --text: #EEF3F1;
+    --text-muted: #93A09B;
+    --focus: #6AA8FF;
+    --power-on: #17B47A;
+    --power-on-hi: #34D697;
+    --power-glow: #3EF0A8;
+    --power-off-face: #1A211F;
+    --power-off-ink: #93A09B;
+    --on-accent: #04110B;
+    --status-active: #5EE0A0;
+    --status-idle: #93A09B;
+    --status-scheduled: #6AA8FF;
+    --status-warning: #F5B13D;
+    --status-error: #F27466;
+    --shadow-window: 0 1px 0 #FFFFFF12 inset, 0 30px 60px -20px #000000B3, 0 0 0 1px #FFFFFF0A;
+    --shadow-face: inset 0 2px 1px #FFFFFF30, inset 0 -6px 14px #00000040, 0 14px 28px -10px #000000A0;
+    --shadow-knob: 0 6px 14px -4px #000000AA, 0 1px 0 #FFFFFF inset;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #07090A;
+  --surface: #111614;
+  --surface-sunken: #0B0F0E;
+  --border: #1C2321;
+  --text: #EEF3F1;
+  --text-muted: #93A09B;
+  --focus: #6AA8FF;
+  --power-on: #17B47A;
+  --power-on-hi: #34D697;
+  --power-glow: #3EF0A8;
+  --power-off-face: #1A211F;
+  --power-off-ink: #93A09B;
+  --on-accent: #04110B;
+  --status-active: #5EE0A0;
+  --status-idle: #93A09B;
+  --status-scheduled: #6AA8FF;
+  --status-warning: #F5B13D;
+  --status-error: #F27466;
+  --shadow-window: 0 1px 0 #FFFFFF12 inset, 0 30px 60px -20px #000000B3, 0 0 0 1px #FFFFFF0A;
+  --shadow-face: inset 0 2px 1px #FFFFFF30, inset 0 -6px 14px #00000040, 0 14px 28px -10px #000000A0;
+  --shadow-knob: 0 6px 14px -4px #000000AA, 0 1px 0 #FFFFFF inset;
+  color-scheme: dark;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --duration-fast: 0ms; --duration-base: 0ms; --duration-fill: 0ms; }
+}

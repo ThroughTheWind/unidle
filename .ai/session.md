@@ -12,7 +12,7 @@ Phase 1 of the [roadmap](../docs/ROADMAP.md), v1.0: everything in SPEC §5 to §
 
 ## In progress
 
-A stack of five PRs, each based on the one before, to merge in order: #1 WI-001 power assertion, #2 WI-002 input nudges, #3 WI-004 tray and window lifecycle, #4 WI-005 settings backend, #5 the single-instance fix (F-004). Each item is at `review`, with its real-machine criteria listed as open in its `## Review`.
+All Phase 1 backend work is merged into `main`: #1 WI-001 power assertion, #2 WI-002 input nudges, #3 WI-004 tray and window lifecycle, #4 WI-005 settings backend, #5 the single-instance fix (F-004), plus #6 WI-006, the landing page in `site/`. Each item stays at `review` until its real-machine criteria, listed as open in its `## Review`, are met; WI-006 waits on the first GitHub Pages deploy.
 
 ## Resume from
 
