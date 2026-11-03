@@ -6,7 +6,8 @@ This project follows [Semantic Versioning](https://semver.org).
 
 ### Added
 
-- The window has a new power button, in four styles to pick from in Settings: Halo (the default), Orbit, Pulse and Wake eye. A Settings screen now covers every setting, including recording a global shortcut. If turning ON fails, the window says why instead of staying silent. The Geist fonts ship with the app.
+- A Theme setting: System (the default), Light or Dark. The window and its title bar follow it.
+- The window has a new power button, in four styles to pick from in Settings: Halo (the default), Orbit, Pulse and Wake eye. A Settings screen now covers every setting, including recording a global shortcut. If turning ON fails, the window says why instead of staying silent. The Geist fonts ship with the app. The "Schedule (coming soon)" notice is gone until scheduling exists.
 - Landing page in `site/` with per-OS download links, deployed to GitHub Pages.
 - Opening the app while it's already running shows its window instead of starting a second copy.
 - Settings are stored in `settings.json` in your config folder: nudge on or off, method, key and interval, keep display on, launch at login (starts in the tray), restore last state, a global shortcut, and a notification on each change. A broken file never stops the app; bad values fall back to their defaults.

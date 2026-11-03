@@ -18,7 +18,7 @@ Files in this folder:
 2. **Premium, not loud.** Depth comes from light (a soft top-left highlight, inner shadow, one glow when on), not from many colors.
 3. **Never ambiguous.** State is shown by fill, motion *and* a word ("On" / "Off"), never color alone.
 4. **Personal.** The user picks one of four button styles. Halo is the default.
-5. **Room to grow.** A reserved slot under the button holds future scheduling.
+5. **Room to grow.** The space under the button can hold future scheduling. Nothing is shown there until scheduling exists.
 
 ## Color
 
@@ -81,9 +81,7 @@ Window 360 × 420 (SPEC FR-11, F-001), `radius-window`, `surface` → `surface-s
 │            ╰────╯            │
 │              ON              │  state word
 │           00:42:17           │  timer (mono)
-│ ┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┐ │
-│ ╎ Schedule (coming soon)   ╎ │  reserved slot
-│ └╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┘ │
+│                              │
 └──────────────────────────────┘
 ```
 

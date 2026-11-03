@@ -1,6 +1,7 @@
 import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import { type ButtonStyle, BUTTON_STYLES, buttonStyle, setButtonStyle } from "./power-button";
 import { shortcutFromEvent } from "./shortcut";
@@ -16,6 +17,9 @@ interface Status {
 
 type NudgeMethod = "pointer" | "keystroke" | "both";
 
+const THEMES = ["system", "light", "dark"] as const;
+type Theme = (typeof THEMES)[number];
+
 /** The settings file's fields, as `get_settings` returns them. */
 interface Settings {
   nudgeEnabled: boolean;
@@ -30,6 +34,7 @@ interface Settings {
   notifyOnChange: boolean;
   trayNoticeShown: boolean;
   buttonStyle: ButtonStyle;
+  theme: Theme;
 }
 
 const MIN_INTERVAL = 10;
@@ -233,6 +238,28 @@ const selectStyle = segmented(
   },
 );
 
+/** "system" follows the OS through `prefers-color-scheme` (tokens.css). */
+function applyTheme(theme: Theme): void {
+  const root = document.documentElement;
+  if (theme === "system") delete root.dataset.theme;
+  else root.dataset.theme = theme;
+  // The native title bar follows too; null means the OS theme.
+  void getCurrentWindow()
+    .setTheme(theme === "system" ? null : theme)
+    .catch(() => {});
+}
+
+const selectTheme = segmented(
+  element("theme-picker"),
+  THEMES,
+  (theme) => strings.themes[theme],
+  (theme) => {
+    applyTheme(theme);
+    selectTheme(theme);
+    void update({ theme });
+  },
+);
+
 const methods: readonly NudgeMethod[] = ["pointer", "keystroke", "both"];
 const selectMethod = segmented(
   methodPicker,
@@ -253,6 +280,9 @@ function renderSettings(): void {
   if (!settings) return;
   setButtonStyle(power, buttonStyle(settings.buttonStyle));
   selectStyle(buttonStyle(settings.buttonStyle));
+  const theme = THEMES.find((name) => name === settings?.theme) ?? "system";
+  applyTheme(theme);
+  selectTheme(theme);
   selectMethod(settings.nudgeMethod);
   nudgeEnabled.checked = settings.nudgeEnabled;
   nudgeKey.value = settings.nudgeKey;
@@ -369,9 +399,9 @@ window.addEventListener("keydown", (event) => {
 // ── Start ────────────────────────────────────────────────────────────────
 
 text("title", strings.appName);
-text("schedule", strings.scheduleSoon);
 text("h-appearance", strings.appearance);
 text("l-style", strings.buttonStyle);
+text("l-theme", strings.theme);
 text("h-activity", strings.activity);
 text("l-nudge", strings.nudgeEnabled);
 text("d-nudge", strings.nudgeEnabledHint);

@@ -14,6 +14,9 @@ use crate::platform::PowerOptions;
 /// default.
 pub const BUTTON_STYLES: [&str; 4] = ["halo", "orbit", "pulse", "eye"];
 
+/// The window's color themes. The first, following the OS, is the default.
+pub const THEMES: [&str; 3] = ["system", "light", "dark"];
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
@@ -41,6 +44,8 @@ pub struct Settings {
     pub tray_notice_shown: bool,
     /// One of [`BUTTON_STYLES`].
     pub button_style: String,
+    /// One of [`THEMES`].
+    pub theme: String,
 }
 
 impl Default for Settings {
@@ -58,6 +63,7 @@ impl Default for Settings {
             notify_on_change: false,
             tray_notice_shown: false,
             button_style: BUTTON_STYLES[0].to_string(),
+            theme: THEMES[0].to_string(),
         }
     }
 }
@@ -119,6 +125,10 @@ impl Settings {
             button_style: read.parse("buttonStyle", defaults.button_style.clone(), |value| {
                 let style = value.as_str()?;
                 BUTTON_STYLES.contains(&style).then(|| style.to_string())
+            }),
+            theme: read.parse("theme", defaults.theme.clone(), |value| {
+                let theme = value.as_str()?;
+                THEMES.contains(&theme).then(|| theme.to_string())
             }),
         };
         (settings, fallbacks)
@@ -210,6 +220,7 @@ mod tests {
             notify_on_change: true,
             tray_notice_shown: true,
             button_style: "eye".into(),
+            theme: "dark".into(),
         };
         let (read, fallbacks) = Settings::from_json(&settings.to_json());
         assert_eq!(read, settings);
@@ -238,7 +249,8 @@ mod tests {
                 "nudgeIntervalSecs": 5,
                 "keepDisplayOn": false,
                 "globalShortcut": 42,
-                "buttonStyle": "sparkles"
+                "buttonStyle": "sparkles",
+                "theme": "sepia"
             }"#,
         );
         assert_eq!(
@@ -256,7 +268,8 @@ mod tests {
                 "nudgeKey",
                 "nudgeIntervalSecs",
                 "globalShortcut",
-                "buttonStyle"
+                "buttonStyle",
+                "theme"
             ]
         );
     }
@@ -302,5 +315,6 @@ mod tests {
         assert_eq!(settings.global_shortcut, None);
         assert!(!settings.notify_on_change);
         assert_eq!(settings.button_style, "halo");
+        assert_eq!(settings.theme, "system");
     }
 }

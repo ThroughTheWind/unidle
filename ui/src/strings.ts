@@ -24,7 +24,6 @@ export const strings = {
   notImplemented: "This system can't be kept awake yet",
   inputUnavailable: "Input simulation unavailable: keeping the system awake only.",
   openAccessibility: "Open Accessibility settings",
-  scheduleSoon: "Schedule (coming soon)",
 
   // Settings
   appearance: "Appearance",
@@ -34,6 +33,12 @@ export const strings = {
     orbit: "Orbit",
     pulse: "Pulse",
     eye: "Wake eye",
+  },
+  theme: "Theme",
+  themes: {
+    system: "System",
+    light: "Light",
+    dark: "Dark",
   },
   activity: "Activity",
   nudgeEnabled: "Simulate input",
