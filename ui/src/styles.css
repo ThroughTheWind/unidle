@@ -152,7 +152,8 @@ body {
   flex: 1;
   overflow-y: auto;
   scrollbar-width: thin;
-  padding-bottom: var(--space-2);
+  /* Room between the column and the scrollbar. */
+  padding: 0 var(--space-3) var(--space-2) 0;
 }
 
 .group + .group {
