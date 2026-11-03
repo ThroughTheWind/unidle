@@ -1,0 +1,44 @@
+---
+description: >-
+  How to read and change a work item — required sections, status honesty, and the scope rule.
+  Loads when an agent touches the backlog.
+paths:
+  - "docs/backlog/**/*.md"
+enforcement: gated
+---
+
+# Working on a work item
+
+**Authority:** [`docs/backlog/README.md`](../../docs/backlog/README.md). This rule is the
+short form an agent meets while editing; the reasoning lives there.
+
+## Before changing an item
+
+- **Re-derive the state; do not quote the board.** A status line, a board row or a triage is
+  bookkeeping *about* the work, not the work. Check the artifact the claim is about — the branch,
+  the tests, the file — before acting on what a field says.
+- **The template's sections are required, not suggested.** `Out of scope` and
+  `Acceptance criteria` may be answered with an explicit "none, because…" but may not be left
+  blank or deleted. A blank one is an unfinished plan.
+
+## While executing
+
+- **Never scope-creep.** Work discovered mid-flight becomes a **new item**; a mere observation
+  becomes a **finding**. An item that grew a second purpose should have been two.
+- **Deviations from the plan go in `## Execution`, with the reason.** A plan that silently stopped
+  matching what was built is worse than no plan, because it reads as verified.
+
+## When it lands
+
+- **Move the status in the same change that merges the branch.** `backlog-merged-status` refuses a
+  merged branch sitting at a pre-review status — measured elsewhere at 37 items, one of them eight
+  days stale.
+- **Never write that something is blocked on finished work.** `backlog-stale-blocker` refuses it:
+  it reads as a live constraint and the next session plans around a wall that came down months ago.
+  Past tense ("was blocked on") is a record and is allowed.
+
+## Escape hatches
+
+Both gates take an exemption **that must state a reason** — `branch-merged-ok: <why>` and
+`owner-ok: <why>`. A marker with no reason is ignored: an escape hatch nobody has to justify is not
+an escape hatch, it is an off switch.

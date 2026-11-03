@@ -1,0 +1,68 @@
+# Installed by `rungs`. This is a record of what was written, not a control panel:
+# editing a parameter here does not rewrite a file that already exists. `rungs render`
+# re-emits path-scoped rules from `.ai/rules/`, and `rungs upgrade --apply` replaces
+# module files you have not edited — neither re-substitutes parameters. AGENTS.md,
+# CLAUDE.md, .gitignore, .gitattributes and .ai/gates.toml are shared between modules,
+# so only their `rungs:begin`/`rungs:end` blocks are ever updated; anything outside a
+# block, including the entry document's title, is yours to edit directly.
+#
+# Hashes are what rungs emitted; a file whose hash no longer matches is a
+# divergence rungs reports and never overwrites.
+
+[repo]
+harnesses = ["claude","agents-md"]
+installed = "2026-11-03"
+
+[modules.instructions]
+version = "1.4.0"
+state   = "managed"
+params  = { project_name = "activity-simulator", harnesses = ["claude","agents-md"], core_budget = 200 }
+[modules.instructions.hashes]
+".ai/rungs.mjs" = "4ff3f1f29bfa"
+".ai/rules/README.md" = "5435cf6d3287"
+
+[modules.gates]
+version = "1.1.0"
+state   = "managed"
+params  = { tiers = ["fast","full"], ledger = true, fast_budget_ms = 30000 }
+[modules.gates.hashes]
+".claude/skills/harden-rule/SKILL.md" = "0f28e82c4757"
+
+[modules.backlog]
+version = "1.2.0"
+state   = "managed"
+params  = { id_prefix = "WI", root = "backlog", integration_branch = "main", branch_prefix = "feature" }
+[modules.backlog.hashes]
+"docs/backlog/BACKLOG.md" = "277d4da1e7b1"
+"docs/backlog/README.md" = "ecee69efab5e"
+"docs/backlog/TEMPLATE.md" = "09af8c8adb01"
+"docs/backlog/items/README.md" = "00b9114c4ff8"
+"docs/backlog/archive/README.md" = "ea84f83cda6e"
+".ai/rules/work-items.md" = "ca477545a1d9"
+".claude/skills/work-item/SKILL.md" = "5059d51722af"
+".claude/skills/backlog-summary/SKILL.md" = "6c41634ed154"
+
+[modules.findings]
+version = "1.2.0"
+state   = "managed"
+params  = { id_prefix = "F", path = "docs/backlog/FINDINGS.md" }
+[modules.findings.hashes]
+"docs/backlog/FINDINGS.md" = "476321fab43f"
+".claude/skills/record-finding/SKILL.md" = "3831a7ca5a99"
+
+[modules.adr]
+version = "1.2.1"
+state   = "managed"
+params  = { path = "docs/decisions", id_prefix = "ADR" }
+[modules.adr.hashes]
+"docs/decisions/README.md" = "76a07b94404e"
+"docs/decisions/TEMPLATE.md" = "0350900661eb"
+
+[modules.session]
+version = "1.3.0"
+state   = "managed"
+params  = { path = ".ai/session.md", archive = ".ai/archive" }
+[modules.session.hashes]
+".ai/session.md" = "23d0933df6e7"
+".ai/archive/README.md" = "a11aad913a50"
+".claude/skills/close-session/SKILL.md" = "8c17b9f2ea4c"

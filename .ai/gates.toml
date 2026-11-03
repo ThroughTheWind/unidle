@@ -1,0 +1,318 @@
+# Gate registry.
+#
+# Every gate this repo runs is declared here, and `node .ai/rungs.mjs check` runs them. Modules add their own
+# entries on install — those live inside marked blocks and are regenerated; anything outside a
+# block is yours and is never touched.
+
+[runner]
+tiers          = ["fast", "full"]
+ledger         = true          # .ai/.gate-ledger.jsonl — gitignored, local, no network
+fast_budget_ms = 30000
+
+# ── your gates ────────────────────────────────────────────────────────────────
+#
+# A `command` gate is any shell string. The runner records its exit status and wall-clock the same
+# way it records a declared gate's, whatever language it is written in — which is how an existing
+# validator gets the ledger without being rewritten.
+#
+# [[gates]]
+# id      = "build"
+# kind    = "command"
+# tier    = "full"
+# command = "dotnet build MySolution.slnx -c Release"
+# why     = "One sentence. `doctor` quotes this back when the gate has never fired."
+#
+# [[gates]]
+# id      = "doc-links"
+# kind    = "command"
+# tier    = "fast"
+# command = "pwsh ./scripts/validate-doc-links.ps1"
+# why     = "Adopted 2026-01-01; predates rungs and is owned by this repo."
+
+[[gates]]
+id      = "core-tests"
+kind    = "command"
+tier    = "full"
+command = "cargo test -p activity-simulator-core"
+why     = "The controller is what guarantees OFF always releases the OS assertion, and the spec makes that the app's core safety property."
+
+[[gates]]
+id      = "ui-typecheck"
+kind    = "command"
+tier    = "full"
+command = "npm run typecheck"
+why     = "The UI talks to the Rust commands through untyped invoke calls, so the TypeScript types are the only check before runtime."
+
+# ── module gates ──────────────────────────────────────────────────────────────
+# Generated. Edit the owning module's parameters, not these entries.
+
+# rungs:begin gates@1.1.0
+
+[[gates]]
+id     = "gates-links-resolve"
+kind   = "declared"
+module = "gates"
+engine = "link-integrity"
+table  = "gates/structural.toml"
+tier   = "fast"
+why    = """A relative link that stopped resolving is the cheapest possible signal that a document moved and its citers did not."""
+
+[[gates]]
+id     = "gates-paths-exist"
+kind   = "declared"
+module = "gates"
+engine = "link-integrity"
+table  = "gates/structural.toml"
+tier   = "fast"
+why    = """Instruction files name paths. hexguard's seven instruction files describe workspace registration and CI wiring across 105 packages, and nothing detected a moved path."""
+
+[[gates]]
+id     = "gates-frontmatter-valid"
+kind   = "declared"
+module = "gates"
+engine = "frontmatter-schema"
+table  = "gates/structural.toml"
+tier   = "fast"
+why    = """A skill with malformed frontmatter does not fail; it silently never loads."""
+
+[[gates]]
+id     = "gates-rules-declare-enforcement"
+kind   = "declared"
+module = "gates"
+engine = "frontmatter-schema"
+table  = "gates/structural.toml"
+tier   = "fast"
+why    = """Every rule declares `gated` or `review-only`, and a rule claiming MANDATORY with no gate behind it
+is reported. This is failure mode F1 made detectable: all four source repos wrote rules they could
+not check, and all four decayed — including inside the file that states the rule."""
+
+[[gates]]
+id     = "gates-self-tests-both-directions"
+kind   = "declared"
+module = "gates"
+engine = "gate-meta"
+table  = "gates/structural.toml"
+tier   = "fast"
+why    = """The meta-gate. Every declared gate must carry at least one self-test expecting `fail` and one
+expecting `pass`, because a gate whose rules are currently satisfied is indistinguishable from a
+gate that matches nothing."""
+# rungs:end gates
+
+# ── notes on writing a gate ───────────────────────────────────────────────────
+#
+# 1. A gate exits 0 or 1 and prints why. It does not write to the ledger — the runner does.
+#    A gate that records its own runs can lie about them.
+# 2. Every declared gate needs self-tests asserting BOTH directions. A gate whose rules are
+#    currently satisfied looks exactly like a gate that matches nothing.
+# 3. An exemption marker is ignored unless it states a reason. An escape hatch nobody has to
+#    justify is not an escape hatch, it is an off switch.
+# 4. Match against a preceding-context negation window before refusing a phrase, or the gate will
+#    refuse the sentence that documents the fix. A guard that refuses its own fix gets disabled.
+# 5. Prefer a gate that recomputes a number over one that compares a typed number. A probe
+#    encoding a guess is a gate that is confidently wrong, which is worse than the typed value.
+
+# rungs:begin instructions@1.4.0
+
+[[gates]]
+id     = "instructions-core-size"
+kind   = "declared"
+module = "instructions"
+engine = "file-budget"
+table  = "instructions/core.toml"
+tier   = "fast"
+why    = """rift-forge's entry document reached 1513 lines and every session read all of it, in the one repo that otherwise measured everything."""
+
+[[gates]]
+id     = "instructions-render-current"
+kind   = "declared"
+module = "instructions"
+engine = "render-freshness"
+table  = "instructions/core.toml"
+tier   = "fast"
+why    = """A rendered rule that no longer matches its source is a rule the agent is not reading. A green check means 'not yet regenerated', never 'current'."""
+
+[[gates]]
+id     = "instructions-repo-map-current"
+kind   = "declared"
+module = "instructions"
+engine = "render-freshness"
+table  = "instructions/core.toml"
+tier   = "fast"
+why    = """Every source repo hand-maintained a repo map and one of them grew five duplicated entries — in the file every session reads first."""
+
+[[gates]]
+id     = "instructions-shell-backticks"
+kind   = "declared"
+module = "instructions"
+engine = "shell-safety"
+table  = "instructions/core.toml"
+trigger = "pre-tool-use"
+matcher = "Bash|PowerShell"
+why    = """Inside a double-quoted shell string, backticks are command substitution, so a `node -e "…"` that
+writes documentation deletes the backticked words and leaves grammatical text behind. It exits 0.
+rift-forge measured six occurrences and six repair passes in one session, documented it, and was
+broken three more times before making it a hook — which is the whole argument for the escalation
+ladder this module ships."""
+
+[[gates]]
+id     = "instructions-imperatives"
+kind   = "declared"
+module = "instructions"
+engine = "imperative-census"
+table  = "instructions/core.toml"
+surface = "explain"
+why    = """Three readers in a row assumed rungs reports which instructions say MUST and have nothing checking
+them. The landing page had asserted it in a fabricated console block for weeks. Whether a sentence is
+enforced cannot be read from the sentence, so this reports the rows — file, line, modal — and no
+verdict; the hand-classified oracle (docs/design/imperative-oracle-2026-09-06.md) found 70% of a
+naive grep's hits in the largest corpus file were project history, not rules."""
+
+[[gates]]
+id     = "instructions-stale-commands"
+kind   = "declared"
+module = "instructions"
+engine = "command-reference"
+table  = "instructions/core.toml"
+tier   = "fast"
+why    = """`rungs backlog archive` was named in three files shipped into every consumer repo, two of them
+saying "never by hand", and the command did not exist (F-015). A command named in an instruction
+file whose surface exists and does not contain it — a package.json script, a CLI command — is the
+one instruction defect a scan can disprove rather than suspect."""
+# rungs:end instructions
+
+# rungs:begin backlog@1.2.0
+
+[[gates]]
+id     = "backlog-ids"
+kind   = "declared"
+module = "backlog"
+engine = "id-integrity"
+table  = "backlog/ids.toml"
+tier   = "fast"
+why    = """An id claimed twice is two items the board shows as one."""
+
+[[gates]]
+id     = "backlog-stale-blocker"
+kind   = "declared"
+module = "backlog"
+engine = "id-integrity"
+table  = "backlog/ids.toml"
+tier   = "fast"
+why    = """A document saying it is blocked on finished work reads as a live constraint, and the next session
+plans around a wall that came down months ago. rift-forge measured 95% of 474 rows naming a
+finished item as next owner, then found those routes quoted in a code comment as evidence."""
+
+[[gates]]
+id     = "backlog-merged-status"
+kind   = "declared"
+module = "backlog"
+engine = "git-status-reconcile"
+table  = "backlog/ids.toml"
+tier   = "fast"
+why    = """An item whose branch is merged cannot still be on its way to review. Measured 2026-08-13 in
+rift-forge: 37 items sat at `review` with their code already landed, and one sat `in_progress`
+for eight days after its own merge."""
+
+[[gates]]
+id     = "backlog-board-reconciled"
+kind   = "declared"
+module = "backlog"
+engine = "board-reconcile"
+table  = "backlog/ids.toml"
+tier   = "fast"
+why    = """The board groups rows by status and each item declares its own; nothing checked that the two agreed.
+Measured here 2026-08-16: fourteen rows disagreed — nine under `Proposed`, five under `Planned`, all
+naming items whose files read `status: done`, and nine of them already moved into `archive/`, so the
+board called work proposed while pointing at the directory for work that cannot change. An outside
+reader checking whether that work was done would have been told no. `backlog-merged-status`
+reconciles a branch against the same field; this is the layer above it."""
+# rungs:end backlog
+
+# rungs:begin findings@1.2.0
+
+[[gates]]
+id     = "findings-ids"
+kind   = "declared"
+module = "findings"
+engine = "id-integrity"
+table  = "findings/findings.toml"
+tier   = "fast"
+why    = """Two findings sharing an id are one finding as far as every citation is concerned."""
+
+[[gates]]
+id     = "findings-disposition-has-reason"
+kind   = "declared"
+module = "findings"
+engine = "register-schema"
+table  = "findings/findings.toml"
+tier   = "fast"
+why    = """A finding closed without a written reason is indistinguishable from one nobody looked at, and it
+is the same observation the next session will record again. The reason is what the register is for."""
+
+[[gates]]
+id     = "findings-self-declared-closure"
+kind   = "declared"
+module = "findings"
+engine = "self-declared-closure"
+table  = "findings/findings.toml"
+tier   = "fast"
+why    = """An open finding whose own detail says it is fixed contradicts the register; this narrow text check catches drift without pretending to prove code-level closure."""
+# rungs:end findings
+
+# rungs:begin adr@1.2.1
+
+[[gates]]
+id     = "adr-index-current"
+kind   = "declared"
+module = "adr"
+engine = "render-freshness"
+table  = "adr/adr.toml"
+tier   = "fast"
+why    = """An index that has stopped listing every record is a routing table that silently drops decisions."""
+
+[[gates]]
+id     = "adr-sections-present"
+kind   = "declared"
+module = "adr"
+engine = "sections"
+table  = "adr/adr.toml"
+tier   = "fast"
+why    = """The `[sections]` table required Context, Decision, Consequences, Alternatives considered and
+Revisit triggers with non-empty bodies, and **no gate declared it** — a fully specified check that
+nothing ran, found 2026-08-16 by executing the self-test fixtures (F-018). Two fixtures were even
+labelled for `adr-required-fields`, which checks frontmatter and could never have satisfied them.
+A record without alternatives is a description of what was done rather than a decision, which is
+what the admission rule's second criterion guards against."""
+
+[[gates]]
+id     = "adr-required-fields"
+kind   = "declared"
+module = "adr"
+engine = "frontmatter-schema"
+table  = "adr/adr.toml"
+tier   = "fast"
+why    = """A record with no alternatives section is a description of what was done, not a decision. The
+admission rule exists to keep those out, and this gate is what makes the rule more than advice."""
+# rungs:end adr
+
+# rungs:begin session@1.3.0
+
+[[gates]]
+id     = "session-sections-present"
+kind   = "declared"
+module = "session"
+engine = "sections"
+table  = "session/session.toml"
+tier   = "fast"
+why    = """The sections are the value. A handoff missing "Active constraints" is one where the next session
+reopens a settled question, which is the specific failure this document exists to prevent."""
+
+[[gates]]
+id     = "session-archive-named"
+kind   = "declared"
+module = "session"
+engine = "filename-schema"
+table  = "session/session.toml"
+tier   = "fast"
+why    = """An archive whose filenames do not say what closed and what came next is a folder nobody opens."""
+# rungs:end session

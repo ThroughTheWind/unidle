@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Activity Simulator</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+    <script type="module" src="./src/main.ts"></script>
+  </head>
+  <body>
+    <header class="header">
+      <h1 id="app-name"></h1>
+    </header>
+
+    <main class="hero">
+      <button id="toggle" class="toggle" type="button" role="switch" aria-checked="false">
+        <span class="toggle-thumb"></span>
+      </button>
+      <p id="state" class="state"></p>
+      <p class="status" role="status">
+        <span id="status-dot" class="status-dot"></span>
+        <span id="status-text"></span>
+        <span id="status-timer" class="status-timer"></span>
+      </p>
+    </main>
+
+    <section class="card">
+      <p id="schedule"></p>
+    </section>
+
+    <footer class="footer">
+      <span id="version"></span>
+    </footer>
+  </body>
+</html>

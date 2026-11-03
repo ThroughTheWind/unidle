@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Activity Simulator preview</title>
+<link rel="stylesheet" href="tokens.css">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:var(--color-bg);color:var(--color-text);font:var(--text-body)/var(--lh-normal) var(--font-sans);padding:var(--space-6) var(--space-4)}
+h1{font-size:var(--text-title);font-weight:var(--weight-semibold);margin:0 0 var(--space-5)}
+.row{display:flex;flex-wrap:wrap;gap:var(--space-5);align-items:flex-start}
+.win{width:var(--window-width);height:var(--window-height);background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);padding:var(--space-5);display:flex;flex-direction:column}
+.hdr{display:flex;justify-content:space-between;align-items:center;font-size:var(--text-label);font-weight:var(--weight-medium)}
+.ib{width:32px;height:32px;border-radius:var(--radius-md);display:grid;place-items:center;color:var(--color-text-muted);border:0;background:none;font-size:18px}
+.hero{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--space-3)}
+.sw{width:var(--toggle-width);height:var(--toggle-height);border-radius:var(--radius-full);background:var(--color-toggle-off-track);box-shadow:inset 0 0 0 1.5px var(--color-toggle-off-border);border:0;position:relative;cursor:pointer;transition:background var(--duration-base) var(--ease-standard)}
+.sw::after{content:"";position:absolute;top:4px;left:4px;width:var(--toggle-thumb);height:var(--toggle-thumb);border-radius:50%;background:var(--color-toggle-off-thumb);box-shadow:var(--shadow-thumb);transition:transform var(--duration-base) var(--ease-standard),background var(--duration-base)}
+.sw[aria-checked=true]{background:var(--color-toggle-on-track);box-shadow:none}
+.sw[aria-checked=true]::after{transform:translateX(40px);background:var(--color-toggle-on-thumb)}
+.sw:focus-visible{outline:2px solid var(--color-focus);outline-offset:3px}
+.sw.sched{outline:2px solid var(--color-status-scheduled);outline-offset:2px}
+.state{font-size:var(--text-display);font-weight:var(--weight-semibold);line-height:var(--lh-tight)}
+.off .state{color:var(--color-text-muted)}
+.status{display:flex;align-items:center;gap:var(--space-2);text-align:center}
+.dot{width:8px;height:8px;border-radius:50%;background:currentColor;flex:none}
+.on .status{color:var(--color-status-active)} .on .dot{animation:pulse var(--duration-pulse) infinite}
+.off .status{color:var(--color-status-idle)} .err .status{color:var(--color-status-error)} .sch .status{color:var(--color-status-scheduled)}
+.timer{font:var(--text-caption) var(--font-mono);color:var(--color-text-muted)}
+.slot{border:1px dashed var(--color-border);border-radius:var(--radius-lg);padding:var(--space-3) var(--space-4);color:var(--color-text-muted);font-size:var(--text-caption)}
+.ftr{display:flex;justify-content:space-between;margin-top:var(--space-3);font-size:var(--text-caption);color:var(--color-text-muted)}
+@keyframes pulse{50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.on .dot{animation:none}}
+.lbl{font-size:var(--text-caption);color:var(--color-text-muted);margin:0 0 var(--space-2)}
+.sw-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:var(--space-2);max-width:760px;margin-top:var(--space-6)}
+.chip{border-radius:var(--radius-md);border:1px solid var(--color-border);overflow:hidden;font-size:var(--text-caption);background:var(--color-surface)}
+.chip i{display:block;height:40px}.chip span{display:block;padding:var(--space-2)}
+</style>
+</head>
+<body>
+<h1>Activity Simulator · design preview</h1>
+<div class="row">
+ <div><p class="lbl">Off</p><div class="win off"><div class="hdr">Activity Simulator<button class="ib" aria-label="Settings">⚙</button></div>
+  <div class="hero"><button class="sw" role="switch" aria-checked="false" aria-label="Simulate activity"></button><div class="state">Off</div>
+  <div class="status"><span class="dot"></span>Stopped</div></div>
+  <div class="slot">Schedule (coming soon)</div><div class="ftr"><span>v0.1.0</span><span>GitHub</span></div></div></div>
+ <div><p class="lbl">On</p><div class="win on"><div class="hdr">Activity Simulator<button class="ib" aria-label="Settings">⚙</button></div>
+  <div class="hero"><button class="sw" role="switch" aria-checked="true" aria-label="Simulate activity"></button><div class="state">On</div>
+  <div class="status"><span class="dot"></span>Keeping your computer awake</div><div class="timer">00:42:17</div></div>
+  <div class="slot">Schedule (coming soon)</div><div class="ftr"><span>v0.1.0</span><span>GitHub</span></div></div></div>
+ <div><p class="lbl">Error / Scheduled (future)</p><div class="win err" style="height:auto"><div class="hero" style="padding:var(--space-4) 0"><button class="sw" role="switch" aria-checked="false" aria-label="Simulate activity"></button><div class="state" style="color:var(--color-text-muted)">Off</div><div class="status">▲ Couldn't start: permission needed</div></div></div>
+  <div class="win sch" style="height:auto;margin-top:var(--space-4)"><div class="hero" style="padding:var(--space-4) 0"><button class="sw sched" role="switch" aria-checked="false" aria-label="Simulate activity"></button><div class="state" style="color:var(--color-text-muted)">Off</div><div class="status">◷ Starts at 09:00</div></div></div></div>
+</div>
+<div class="sw-grid" id="sw"></div>
+<script>
+document.querySelectorAll('.sw').forEach(b=>b.addEventListener('click',()=>{if(b.closest('.err,.sch'))return;const on=b.getAttribute('aria-checked')!=='true';b.setAttribute('aria-checked',on);const w=b.closest('.win');w.className='win '+(on?'on':'off');w.querySelector('.state').textContent=on?'On':'Off';w.querySelector('.status').innerHTML='<span class="dot"></span>'+(on?'Keeping your computer awake':'Stopped');const t=w.querySelector('.timer');if(t)t.style.display=on?'':'none';else if(on)w.querySelector('.status').insertAdjacentHTML('afterend','<div class="timer">00:00:00</div>')}));
+const s=getComputedStyle(document.documentElement);['bg','surface','surface-muted','border','text','text-muted','focus','toggle-on-track','toggle-off-border','status-active','status-idle','status-scheduled','status-warning','status-error'].forEach(n=>{document.getElementById('sw').insertAdjacentHTML('beforeend',`<div class="chip"><i style="background:var(--color-${n})"></i><span>${n}<br>${s.getPropertyValue('--color-'+n).trim()}</span></div>`)});
+</script>
+</body></html>
