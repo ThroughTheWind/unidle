@@ -14,6 +14,10 @@ use crate::platform::PowerOptions;
 /// default.
 pub const BUTTON_STYLES: [&str; 4] = ["halo", "orbit", "pulse", "eye"];
 
+/// The app icon designs: the Wake eye and the Halo power button. The first
+/// is the default and the one the installers bundle.
+pub const APP_ICONS: [&str; 2] = ["eye", "power"];
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
@@ -41,6 +45,8 @@ pub struct Settings {
     pub tray_notice_shown: bool,
     /// One of [`BUTTON_STYLES`].
     pub button_style: String,
+    /// One of [`APP_ICONS`]. Sets the tray, window and Dock icons.
+    pub app_icon: String,
 }
 
 impl Default for Settings {
@@ -58,6 +64,7 @@ impl Default for Settings {
             notify_on_change: false,
             tray_notice_shown: false,
             button_style: BUTTON_STYLES[0].to_string(),
+            app_icon: APP_ICONS[0].to_string(),
         }
     }
 }
@@ -119,6 +126,10 @@ impl Settings {
             button_style: read.parse("buttonStyle", defaults.button_style.clone(), |value| {
                 let style = value.as_str()?;
                 BUTTON_STYLES.contains(&style).then(|| style.to_string())
+            }),
+            app_icon: read.parse("appIcon", defaults.app_icon.clone(), |value| {
+                let icon = value.as_str()?;
+                APP_ICONS.contains(&icon).then(|| icon.to_string())
             }),
         };
         (settings, fallbacks)
@@ -210,6 +221,7 @@ mod tests {
             notify_on_change: true,
             tray_notice_shown: true,
             button_style: "eye".into(),
+            app_icon: "power".into(),
         };
         let (read, fallbacks) = Settings::from_json(&settings.to_json());
         assert_eq!(read, settings);
@@ -238,7 +250,8 @@ mod tests {
                 "nudgeIntervalSecs": 5,
                 "keepDisplayOn": false,
                 "globalShortcut": 42,
-                "buttonStyle": "sparkles"
+                "buttonStyle": "sparkles",
+                "appIcon": "cat"
             }"#,
         );
         assert_eq!(
@@ -256,7 +269,8 @@ mod tests {
                 "nudgeKey",
                 "nudgeIntervalSecs",
                 "globalShortcut",
-                "buttonStyle"
+                "buttonStyle",
+                "appIcon"
             ]
         );
     }
@@ -302,5 +316,6 @@ mod tests {
         assert_eq!(settings.global_shortcut, None);
         assert!(!settings.notify_on_change);
         assert_eq!(settings.button_style, "halo");
+        assert_eq!(settings.app_icon, "eye");
     }
 }

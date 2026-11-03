@@ -6,6 +6,7 @@ This project follows [Semantic Versioning](https://semver.org).
 
 ### Added
 
+- A new app and tray icon in the app's graphite and green: the Wake eye, awake. Settings has an App icon choice between the Wake eye and the Halo power button, which switches the tray, taskbar and Dock icons at once. The tray shows a closed eye (or an outlined button) when OFF and an open eye (or a filled green button) when ON.
 - The window has a new power button, in four styles to pick from in Settings: Halo (the default), Orbit, Pulse and Wake eye. A Settings screen now covers every setting, including recording a global shortcut. If turning ON fails, the window says why instead of staying silent. The Geist fonts ship with the app.
 - Landing page in `site/` with per-OS download links, deployed to GitHub Pages.
 - Opening the app while it's already running shows its window instead of starting a second copy.
