@@ -21,6 +21,7 @@ The board. One row per live work item, grouped by status. Items live in
 | --- | --- | --- | --- |
 | [WI-001](items/WI-001-power-assertion-spike.md) | Prove the power assertion on all three platforms | spike | `feature/WI-001-power-assertion` |
 | [WI-002](items/WI-002-input-nudge-spike.md) | Prove pointer and keystroke nudges on all three platforms | spike | `feature/WI-002-input-nudge` |
+| [WI-004](items/WI-004-tray-and-window-lifecycle.md) | Add the tray icon and hide-to-tray window lifecycle | feature | `feature/WI-004-tray-and-window` |
 
 ## Planned
 
@@ -39,7 +40,6 @@ The board. One row per live work item, grouped by status. Items live in
 | Id | Title | Type |
 | --- | --- | --- |
 | [WI-003](items/WI-003-measure-footprint.md) | Measure memory and installer size against the spec limits | spike |
-| [WI-004](items/WI-004-tray-and-window-lifecycle.md) | Add the tray icon and hide-to-tray window lifecycle | feature |
 
 ## Deferred
 

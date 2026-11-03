@@ -1,5 +1,6 @@
 import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 
 import { strings } from "./strings";
 
@@ -74,6 +75,9 @@ element("app-name").textContent = strings.appName;
 element("schedule").textContent = strings.scheduleSoon;
 toggle.setAttribute("aria-label", strings.toggleLabel);
 element("version").textContent = `v${await getVersion()}`;
+
+// The tray can change the state while the window is open.
+await listen<Status>("status-changed", (event) => render(event.payload));
 
 await refresh();
 setInterval(() => {

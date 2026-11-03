@@ -17,6 +17,8 @@ The system webview is the main risk to the 80 MB memory limit (SPEC NFR-1), and 
 
 First numbers, Windows 11 only, 2026-11-03, from a throwaway build of the skeleton: installer 1.05 MiB; window open 155 MB private and 338 MB working set; webview destroyed 6 MB private and 27 MB working set. macOS and Linux are unmeasured. See F-002.
 
+First Linux numbers, 2026-11-03, a debug build on Xvfb with openbox, from WI-004's review: window open about 159 MB private dirty across the app, web and network processes; window closed about 46 MB, because the web process exits. A release build on a real desktop is still unmeasured.
+
 ## Decision
 
 ## Plan

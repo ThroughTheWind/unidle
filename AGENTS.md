@@ -94,7 +94,7 @@ Optional — uncomment if you want it. Not shipped active because it is a prefer
 
 - Commit messages: conventional prefixes (`feat:`, `fix:`, `docs:`, `chore:`…).
 - OS calls live only in platform adapters in `crates/core`, and the UI talks only to the controller (SPEC §11).
-- All UI text goes in `ui/src/strings.ts`, and all styling uses tokens from `docs/design/tokens.css`.
+- All UI text goes in `ui/src/strings.ts` (the tray, menus and notifications in `src-tauri/src/strings.rs`), and all styling uses tokens from `docs/design/tokens.css`.
 - No UI framework in `ui/`, unless the window outgrows plain TypeScript. Evidence would be a screen that needs shared state across several views.
 - No network access in the app, unless a roadmap feature is explicitly opt-in (SPEC NFR-2).
 
