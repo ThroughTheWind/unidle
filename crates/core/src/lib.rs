@@ -17,6 +17,6 @@ pub use nudge::{DEFAULT_INTERVAL, MAX_INTERVAL, MIN_INTERVAL, NudgeConfig, Nudge
 pub use platform::{
     Input, PowerAssertion, PowerOptions, open_input_permission_settings, request_input_permission,
 };
-pub use settings::{APP_ICONS, BUTTON_STYLES, Settings};
+pub use settings::{APP_ICONS, BUTTON_STYLES, Settings, THEMES};
 pub use system::SystemAdapter;
 pub use ticker::Ticker;
