@@ -54,19 +54,25 @@
         <div class="ub-stage">
           <button id="power" class="ub-power" type="button" role="switch" aria-checked="false"></button>
         </div>
-        <div class="ub-meta">
-          <span id="state" class="ub-state"></span>
-          <span id="timer" class="ub-timer"></span>
+        <!-- Fixed height whatever it shows, so the button never moves. -->
+        <div class="under">
+          <div class="ub-meta">
+            <span id="state" class="ub-state"></span>
+            <span id="timer" class="ub-timer"></span>
+          </div>
+          <!-- One line at a time: what needs attention, else who turned it on
+               and the next change (SPEC SC-4). -->
+          <div class="message-slot">
+            <p id="detail" class="as-status detail-line" hidden>
+              <span class="dot"></span>
+              <span id="detail-text"></span>
+            </p>
+            <p id="status" class="as-status status-line" role="status" hidden>
+              <span class="dot"></span>
+              <span id="status-text"></span>
+            </p>
+          </div>
         </div>
-        <!-- Who turned it on, and the next change (SPEC SC-4). -->
-        <p id="detail" class="as-status detail-line" hidden>
-          <span class="dot"></span>
-          <span id="detail-text"></span>
-        </p>
-        <p id="status" class="as-status status-line" role="status" hidden>
-          <span class="dot"></span>
-          <span id="status-text"></span>
-        </p>
         <button id="status-action" class="as-btn ghost status-action" type="button" hidden></button>
         <!-- Quick timers (SPEC SC-3). -->
         <div id="timers" class="timers" role="group"></div>

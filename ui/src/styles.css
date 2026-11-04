@@ -113,9 +113,31 @@ body {
   cursor: progress;
 }
 
+/* The state, the timer and one message line: a fixed height, so the stage
+   above (and the button in it) never moves when they change. */
+.under {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  height: calc(52px + var(--space-1) + 34px);
+}
+
+.under .ub-meta {
+  height: 52px;
+}
+
+.message-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  height: 34px;
+  margin-top: var(--space-1);
+  overflow: hidden;
+}
+
 .status-line {
   justify-content: center;
-  margin-top: var(--space-2);
   font-size: var(--text-caption);
   text-align: left;
 }
@@ -363,15 +385,20 @@ label.row {
 
 .detail-line {
   justify-content: center;
-  margin-top: var(--space-1);
   font-size: var(--text-caption);
+}
+
+.timers,
+.status-action.as-btn {
+  flex: none;
+  height: 30px;
+  margin-top: var(--space-2);
 }
 
 .timers {
   display: flex;
   justify-content: center;
   gap: var(--space-1);
-  margin-top: var(--space-3);
 }
 
 .timers .as-btn {

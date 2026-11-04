@@ -150,6 +150,15 @@ function renderStatus(): void {
   } else {
     setStatusLine(null);
   }
+  // One message at a time in the fixed slot under the button.
+  if (!statusLine.hidden) detail.hidden = true;
+  // The rare action button takes the timer row's place, so nothing moves.
+  renderTimerRow();
+}
+
+/** The timer row, unless hidden by the setting, the picker or the action. */
+function renderTimerRow(): void {
+  timers.hidden = settings?.showTimers === false || !untilForm.hidden || !statusAction.hidden;
 }
 
 /** "Timer · OFF at 18:00", "Scheduled · ON tomorrow at 09:00" (SPEC SC-4). */
@@ -218,8 +227,9 @@ async function startTimer(args: { minutes: number } | { until: string }): Promis
 }
 
 function showUntil(open: boolean): void {
-  timers.hidden = open || settings?.showTimers === false;
+  // The picker the tray asked for opens even with the row hidden.
   untilForm.hidden = !open;
+  renderTimerRow();
   if (open) {
     untilTime.value = nextHour();
     untilTime.focus();
@@ -417,8 +427,7 @@ function renderSettings(): void {
   notifyOnChange.checked = settings.notifyOnChange;
   showTimers.checked = settings.showTimers;
   trayClickToggles.checked = settings.trayClickToggles;
-  // The picker the tray asked for stays open even with the row hidden.
-  timers.hidden = !settings.showTimers || !untilForm.hidden;
+  renderTimerRow();
 
   for (const row of settingsView.querySelectorAll<HTMLElement>("[data-needs-nudge]")) {
     const keyRow = row.hasAttribute("data-needs-key");

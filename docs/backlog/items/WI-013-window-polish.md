@@ -25,6 +25,7 @@ Antoine tried Phase 2 locally and asked for four things. A setting to show or hi
 
 - `showTimers` (default on): the timer row under the button. The tray keeps its timers either way, and a picker the tray asks for still opens.
 - `trayClickToggles` (default on for Windows and Linux, off on macOS, SPEC FR-2): a left click on the tray icon turns the app ON or OFF, and a right click opens the menu. When off, a left click opens the menu.
+- The power button never moves. The lines under it (meta, status, detail, the timer row or the Accessibility action) sit in fixed-height slots, so showing or hiding one does not re-centre the button.
 - The main screen's bar has no title. Settings still shows "Settings", and the OS title bar still names the app.
 - Selects get their own chevron. Time and date fields get a quieter picker button and a filled highlight on the part being edited. Native popovers follow the window's theme (`color-scheme`) and use the brand green (`accent-color`). Inputs and secondary buttons get hover states.
 
@@ -41,6 +42,7 @@ Antoine tried Phase 2 locally and asked for four things. A setting to show or hi
 1. Settings tests cover the new fields' defaults and round trip.
 2. Screenshots: no title on the main screen, the timer row hidden, the custom select focused in dark, and the time and date fields.
 3. On each OS with a real build, the tray click setting does what it says. **Needs real machines.**
+4. The power button's position is the same in the off, on, timer, scheduled, warning and Wayland states, for every button style.
 
 ### Out of scope
 
@@ -55,3 +57,4 @@ Antoine tried Phase 2 locally and asked for four things. A setting to show or hi
 1. Met.
 2. Met. Checked by eye.
 3. **Open.** Needs real machines.
+4. Met. A Playwright script measured the button in every state and style: the same position each time.
