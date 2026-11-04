@@ -17,6 +17,8 @@ use crate::schedule::{Schedule, TimeWindow, Weekdays, format_time, parse_time};
 /// tick slow.
 pub const MAX_SCHEDULE_WINDOWS: usize = 50;
 pub const MAX_SKIP_DATES: usize = 400;
+/// The format of schedule files, so a later format can be told apart.
+const SCHEDULE_FILE_VERSION: u64 = 1;
 
 /// The window's ON/OFF button designs (design system). The first is the
 /// default.
@@ -210,6 +212,43 @@ impl Settings {
             enabled: self.schedule_enabled,
             windows: self.schedule_windows.clone(),
             skip_dates: self.skip_dates.clone(),
+        }
+    }
+
+    /// The schedule as a file to share or back up (ROADMAP Phase 2): the
+    /// windows and days off, without the on/off switch.
+    pub fn schedule_file(&self) -> String {
+        let value = serde_json::json!({
+            "unidleSchedule": SCHEDULE_FILE_VERSION,
+            "scheduleWindows": serde_json::to_value(self).ok().and_then(|v| v.get("scheduleWindows").cloned()),
+            "skipDates": self.skip_dates.iter().map(ToString::to_string).collect::<Vec<_>>(),
+        });
+        serde_json::to_string_pretty(&value).unwrap_or_default() + "\n"
+    }
+
+    /// Reads a file written by [`Self::schedule_file`] into a settings patch.
+    /// Unlike the settings file, it is all or nothing: a file with anything
+    /// wrong is refused, so an import never half-replaces a schedule.
+    pub fn schedule_patch_from_file(text: &str) -> Result<Value, String> {
+        const NOT_A_SCHEDULE: &str = "This isn't an Unidle schedule file";
+        let Ok(Value::Object(object)) = serde_json::from_str::<Value>(text) else {
+            return Err(NOT_A_SCHEDULE.into());
+        };
+        if object.get("unidleSchedule").and_then(Value::as_u64) != Some(SCHEDULE_FILE_VERSION) {
+            return Err(NOT_A_SCHEDULE.into());
+        }
+        let mut patch = Map::new();
+        for key in ["scheduleWindows", "skipDates"] {
+            patch.insert(
+                key.into(),
+                object.get(key).cloned().unwrap_or(Value::Array(Vec::new())),
+            );
+        }
+        let (_, fallbacks) = Self::from_json(&Value::Object(patch.clone()).to_string());
+        match fallbacks.first() {
+            None => Ok(Value::Object(patch)),
+            Some(&"scheduleWindows") => Err("A time in this file is invalid".into()),
+            Some(_) => Err("A day off in this file is invalid".into()),
         }
     }
 
@@ -452,6 +491,42 @@ mod tests {
             ],
             "sorted, without duplicates"
         );
+    }
+
+    #[test]
+    fn a_schedule_file_round_trips_without_the_switch() {
+        let (settings, _) = Settings::from_json(
+            r#"{
+                "scheduleEnabled": true,
+                "scheduleWindows": [{"days": ["mon"], "start": "09:00", "end": "12:00"}],
+                "skipDates": ["2026-12-25"]
+            }"#,
+        );
+        let file = settings.schedule_file();
+        assert!(!file.contains("scheduleEnabled"));
+        let patch = Settings::schedule_patch_from_file(&file).unwrap();
+        let (read, fallbacks) = Settings::from_json(&patch.to_string());
+        assert!(fallbacks.is_empty());
+        assert_eq!(read.schedule_windows, settings.schedule_windows);
+        assert_eq!(read.skip_dates, settings.skip_dates);
+        assert!(!read.schedule_enabled, "the switch stays the user's");
+    }
+
+    #[test]
+    fn a_bad_schedule_file_is_refused_whole() {
+        for text in ["", "{}", r#"{"unidleSchedule": 2}"#, "[1]"] {
+            assert!(Settings::schedule_patch_from_file(text).is_err(), "{text}");
+        }
+        let bad_time = r#"{"unidleSchedule": 1, "scheduleWindows": [{"days": ["mon"], "start": "9", "end": "12:00"}]}"#;
+        assert_eq!(
+            Settings::schedule_patch_from_file(bad_time).unwrap_err(),
+            "A time in this file is invalid"
+        );
+        let bad_date = r#"{"unidleSchedule": 1, "skipDates": ["tomorrow"]}"#;
+        assert!(Settings::schedule_patch_from_file(bad_date).is_err());
+        // Missing lists mean empty ones.
+        let empty = Settings::schedule_patch_from_file(r#"{"unidleSchedule": 1}"#).unwrap();
+        assert_eq!(empty["scheduleWindows"], Value::Array(Vec::new()));
     }
 
     #[test]

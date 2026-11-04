@@ -248,6 +248,54 @@ fn start_timer_command(
     start_timer(&app, length).map(StatusDto::from)
 }
 
+/// Saves the schedule to a file the user picks. `false` when they cancel.
+/// Async so the dialog doesn't block the main thread it needs.
+#[tauri::command]
+async fn export_schedule(app: AppHandle) -> Result<bool, String> {
+    use tauri_plugin_dialog::DialogExt as _;
+    let Some(path) = app
+        .dialog()
+        .file()
+        .set_file_name(strings::SCHEDULE_FILE_NAME)
+        .add_filter(strings::SCHEDULE_FILE_FILTER, &["json"])
+        .blocking_save_file()
+    else {
+        return Ok(false);
+    };
+    let path = path.into_path().map_err(|error| error.to_string())?;
+    let file = app.state::<App>().settings().schedule_file();
+    std::fs::write(path, file).map_err(|error| error.to_string())?;
+    Ok(true)
+}
+
+/// Replaces the schedule's times and days off with a file the user picks.
+/// `None` when they cancel. The on/off switch stays as it is.
+#[tauri::command]
+async fn import_schedule(app: AppHandle) -> Result<Option<Settings>, String> {
+    use tauri_plugin_dialog::DialogExt as _;
+    let Some(path) = app
+        .dialog()
+        .file()
+        .add_filter(strings::SCHEDULE_FILE_FILTER, &["json"])
+        .blocking_pick_file()
+    else {
+        return Ok(None);
+    };
+    let path = path.into_path().map_err(|error| error.to_string())?;
+    // A schedule file is small; anything big is something else.
+    let metadata = std::fs::metadata(&path).map_err(|error| error.to_string())?;
+    if metadata.len() > 1_000_000 {
+        return Err("This isn't an Unidle schedule file".into());
+    }
+    let text = std::fs::read_to_string(&path).map_err(|error| error.to_string())?;
+    let patch = Settings::schedule_patch_from_file(&text)?;
+    let settings = settings::update(&app, patch)?;
+    let status = app.state::<App>().controller().status();
+    tray::refresh(&app, &status);
+    let _ = app.emit(STATUS_EVENT, StatusDto::from(status));
+    Ok(Some(settings))
+}
+
 /// Whether the tray asked for the timer picker since the last call.
 #[tauri::command]
 fn take_timer_picker_request(app: State<'_, App>) -> bool {
@@ -414,6 +462,9 @@ fn main() {
         }))
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
+        // Only for the schedule's import and export dialogs, opened from
+        // Rust; the window gets no dialog or file permissions.
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec![HIDDEN_ARG]),
@@ -448,6 +499,8 @@ fn main() {
             set_active_command,
             start_timer_command,
             take_timer_picker_request,
+            export_schedule,
+            import_schedule,
             get_settings,
             update_settings,
             nudge_keys,
