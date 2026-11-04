@@ -7,6 +7,7 @@ import { type ButtonStyle, BUTTON_STYLES, buttonStyle, setButtonStyle } from "./
 import { shortcutFromEvent } from "./shortcut";
 import { type ScheduleSettings, scheduleEditor } from "./schedule";
 import { strings } from "./strings";
+import { timeField } from "./time-picker";
 import { nextHour, shortWhen, when } from "./when";
 
 interface Status {
@@ -44,6 +45,7 @@ interface Settings extends ScheduleSettings {
   buttonStyle: ButtonStyle;
   theme: Theme;
   appIcon: AppIcon;
+  showTimers: boolean;
 }
 
 /** Mirrors `APP_ICONS` in crates/core/src/settings.rs. The first is the default. */
@@ -203,6 +205,15 @@ const timers = element("timers");
 const untilForm = element<HTMLFormElement>("until-form");
 const untilTime = element<HTMLInputElement>("until-time");
 const untilCancel = element<HTMLButtonElement>("until-cancel");
+untilForm.insertBefore(timeField(untilTime), element("until-start"));
+
+let untilOpen = false;
+
+/** The tray's "Until a time…" opens the picker even while the row is hidden. */
+function renderTimers(): void {
+  timers.hidden = untilOpen || settings?.showTimers === false;
+  untilForm.hidden = !untilOpen;
+}
 
 async function startTimer(args: { minutes: number } | { until: string }): Promise<void> {
   if (pending !== null) return;
@@ -216,11 +227,13 @@ async function startTimer(args: { minutes: number } | { until: string }): Promis
 }
 
 function showUntil(open: boolean): void {
-  timers.hidden = open;
-  untilForm.hidden = !open;
+  untilOpen = open;
+  renderTimers();
   if (open) {
     untilTime.value = nextHour();
     untilTime.focus();
+  } else if (timers.hidden) {
+    power.focus();
   } else {
     timers.querySelector<HTMLButtonElement>("[data-until]")?.focus();
   }
@@ -268,6 +281,7 @@ statusAction.addEventListener("click", () => {
 
 // ── Settings view ────────────────────────────────────────────────────────
 
+const title = element("title");
 const mainView = element("main-view");
 const settingsView = element("settings-view");
 const back = element<HTMLButtonElement>("back");
@@ -284,6 +298,7 @@ const keepDisplayOn = element<HTMLInputElement>("keep-display-on");
 const launchAtLogin = element<HTMLInputElement>("launch-at-login");
 const restoreLastState = element<HTMLInputElement>("restore-last-state");
 const notifyOnChange = element<HTMLInputElement>("notify-on-change");
+const showTimers = element<HTMLInputElement>("show-timers");
 const shortcutRecord = element<HTMLButtonElement>("shortcut-record");
 const shortcutClear = element<HTMLButtonElement>("shortcut-clear");
 const settingsError = element("settings-error");
@@ -404,6 +419,8 @@ function renderSettings(): void {
   selectTheme(theme);
   selectIcon(appIcon(settings.appIcon));
   selectMethod(settings.nudgeMethod);
+  showTimers.checked = settings.showTimers;
+  renderTimers();
   nudgeEnabled.checked = settings.nudgeEnabled;
   nudgeKey.value = settings.nudgeKey;
   nudgeInterval.value = String(settings.nudgeIntervalSecs);
@@ -477,6 +494,7 @@ function onToggle(input: HTMLInputElement, field: keyof Settings): void {
   input.addEventListener("change", () => void update({ [field]: input.checked }));
 }
 
+onToggle(showTimers, "showTimers");
 onToggle(nudgeEnabled, "nudgeEnabled");
 onToggle(keepDisplayOn, "keepDisplayOn");
 onToggle(launchAtLogin, "launchAtLogin");
@@ -542,7 +560,8 @@ function showView(name: "main" | "settings"): void {
   // The main screen stays uncluttered: only the update link sits there.
   openWebsite.hidden = !inSettings;
   shell.classList.toggle("in-settings", inSettings);
-  text("title", inSettings ? strings.settings : strings.appName);
+  // The main screen has no title: the OS title bar already names the app.
+  title.hidden = !inSettings;
   if (recording) stopRecording();
   showSettingsError(null);
   (inSettings ? back : power).focus();
@@ -553,17 +572,22 @@ back.addEventListener("click", () => showView("main"));
 checkUpdates.addEventListener("click", () => void invoke("open_link", { link: "releases" }));
 openWebsite.addEventListener("click", () => void invoke("open_link", { link: "website" }));
 window.addEventListener("keydown", (event) => {
+  // Escape closes an open dropdown first, in the webviews that draw their own.
+  if (CSS.supports("selector(:open)") && nudgeKey.matches(":open")) return;
   if (event.key === "Escape" && !settingsView.hidden && !recording) showView("main");
 });
 
 // ── Start ────────────────────────────────────────────────────────────────
 
-text("title", strings.appName);
+title.textContent = strings.settings;
+title.hidden = true;
 text("h-appearance", strings.appearance);
 text("l-style", strings.buttonStyle);
 text("l-theme", strings.theme);
 text("l-icon", strings.appIcon);
 text("d-icon", strings.appIconHint);
+text("l-show-timers", strings.showTimers);
+text("d-show-timers", strings.showTimersHint);
 text("h-activity", strings.activity);
 text("l-nudge", strings.nudgeEnabled);
 text("d-nudge", strings.nudgeEnabledHint);

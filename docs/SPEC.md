@@ -151,7 +151,7 @@ Phase 2 of the [roadmap](ROADMAP.md). The toggle is one input among several: the
 
 - **SC-1 Schedules:** one or more weekly time windows (e.g. Mon to Fri, 09:00 to 18:00) during which simulation is automatically ON. Times are local wall-clock times. A window whose end is at or before its start runs overnight into the next day. Overlapping windows merge.
 - **SC-2 Skip days:** dates on which the schedule doesn't run (holidays). A window that starts on a skip day is skipped.
-- **SC-3 Timers:** "ON for 15 min / 30 min / 1 h / 2 h / until HH:MM" quick actions from the tray menu and the window. "Until" a time already past today means tomorrow.
+- **SC-3 Timers:** "ON for 15 min / 30 min / 1 h / 2 h / until HH:MM" quick actions from the tray menu and the window. "Until" a time already past today means tomorrow. A setting hides the window's row; the tray menu always has them.
 - **SC-4 Source indicator:** the state shows its source, Manual, Timer or Scheduled, and the next change ("Timer: OFF at 18:00", "Scheduled: ON at 09:00").
 - **SC-5 Precedence:**
   - The most recent manual action or timer wins over the schedule. A manual action cancels a running timer, and a new timer replaces a manual action.

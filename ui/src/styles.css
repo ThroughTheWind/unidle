@@ -63,6 +63,11 @@ body {
   margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-3)) 0;
 }
 
+/* Keeps the icons at the right while the main screen has no title. */
+#check-updates {
+  margin-left: auto;
+}
+
 .bar-title {
   flex: 1;
   padding-left: var(--space-3);
@@ -242,6 +247,10 @@ label.row {
     0 0 0 1px var(--border);
 }
 
+.seg button:hover:not(.sel, :disabled) {
+  color: var(--text);
+}
+
 .seg button:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 1px;
@@ -305,6 +314,222 @@ label.row {
   box-shadow: 0 0 0 1px var(--border);
   color: var(--text);
   font: var(--weight-medium) var(--text-body) var(--font-sans);
+  transition: box-shadow var(--duration-fast) var(--ease-standard);
+}
+
+.input:hover:not(:disabled) {
+  box-shadow: 0 0 0 1px var(--text-muted);
+}
+
+.input:disabled {
+  cursor: default;
+}
+
+/* The field's own icons, so they match in both themes. */
+.input::-webkit-calendar-picker-indicator {
+  opacity: 0.6;
+  cursor: pointer;
+}
+
+.input::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+.input::-webkit-inner-spin-button {
+  display: none;
+}
+
+/* Native pickers and scrollbars follow the app's theme, not the OS's. */
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+/* A select with the design's chevron and, where the webview allows it, the
+   design's list. Elsewhere the list stays the OS's own. */
+.select-field {
+  position: relative;
+  display: inline-flex;
+}
+
+.select-field::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  width: 7px;
+  height: 7px;
+  margin-top: -5px;
+  border: solid var(--text-muted);
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+
+.select-field select {
+  appearance: none;
+  min-width: 88px;
+  padding-right: 28px;
+  cursor: pointer;
+}
+
+.select-field select:disabled {
+  cursor: default;
+}
+
+@supports (appearance: base-select) {
+  .select-field select,
+  .select-field select::picker(select) {
+    appearance: base-select;
+  }
+
+  .select-field select {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .select-field select::picker-icon {
+    display: none;
+  }
+
+  .select-field select::picker(select) {
+    margin-top: var(--space-1);
+    padding: var(--space-1);
+    border: 0;
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    box-shadow:
+      0 8px 24px -8px #00000066,
+      0 0 0 1px var(--border);
+  }
+
+  .select-field option {
+    min-height: 28px;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-caption);
+    font-weight: var(--weight-medium);
+    cursor: pointer;
+  }
+
+  .select-field option:hover,
+  .select-field option:focus-visible {
+    outline: 0;
+    background: var(--power-off-face);
+  }
+
+  .select-field option::checkmark {
+    color: var(--power-on);
+  }
+}
+
+/* The time field and its popover (time-picker.ts). */
+.time-field {
+  position: relative;
+  display: inline-flex;
+  flex: 1;
+  min-width: 0;
+}
+
+.time-field .input {
+  width: 100%;
+  padding-right: 26px;
+}
+
+.time-field .input::-webkit-calendar-picker-indicator {
+  display: none;
+}
+
+.time-toggle {
+  all: unset;
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  bottom: 4px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.time-toggle svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.time-toggle:hover:not(:disabled),
+.time-toggle[aria-expanded="true"] {
+  background: var(--power-off-face);
+  color: var(--text);
+}
+
+.time-toggle:focus-visible {
+  outline: 2px solid var(--focus);
+}
+
+.time-toggle:disabled {
+  cursor: default;
+}
+
+.time-popover {
+  position: fixed;
+  z-index: 10;
+  display: flex;
+  gap: var(--space-1);
+  width: 148px;
+  height: 196px;
+  padding: var(--space-1);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow:
+    0 8px 24px -8px #00000066,
+    0 0 0 1px var(--border);
+}
+
+.time-column {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.time-column + .time-column {
+  padding-left: var(--space-1);
+  border-left: 1px solid var(--border);
+}
+
+.time-option {
+  all: unset;
+  flex: none;
+  padding: var(--space-1) 0;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font: var(--weight-medium) var(--text-caption) var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  cursor: pointer;
+}
+
+.time-option:hover {
+  background: var(--power-off-face);
+  color: var(--text);
+}
+
+.time-option:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+.time-option[aria-selected="true"] {
+  background: linear-gradient(160deg, var(--power-on-hi), var(--power-on));
+  color: var(--on-accent);
 }
 
 .input-with-unit {
@@ -386,6 +611,20 @@ label.row {
   white-space: nowrap;
 }
 
+.as-btn {
+  transition:
+    background var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
+}
+
+.as-btn.secondary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--power-off-face) 80%, var(--text));
+}
+
+.as-btn.ghost:hover:not(:disabled) {
+  color: var(--text);
+}
+
 .until {
   align-items: center;
   gap: var(--space-2);
@@ -396,8 +635,12 @@ label.row {
   font-size: var(--text-caption);
 }
 
+.until .time-field {
+  flex: none;
+  width: 124px;
+}
+
 .until-time {
-  width: 112px;
   min-width: 0;
   height: 30px;
   font-family: var(--font-mono);
@@ -449,6 +692,10 @@ label.row {
   background: linear-gradient(160deg, var(--power-on-hi), var(--power-on));
   box-shadow: none;
   color: var(--on-accent);
+}
+
+.day:hover:not(:disabled, [aria-pressed="true"]) {
+  color: var(--text);
 }
 
 .day:focus-visible {

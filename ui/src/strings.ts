@@ -39,6 +39,9 @@ export const strings = {
   untilStart: "Start",
   untilCancel: "Cancel",
   timerFailed: "Couldn't start the timer",
+  pickTime: "Choose a time",
+  hours: "Hours",
+  minutes: "Minutes",
   sources: {
     manual: "Manual",
     timer: "Timer",
@@ -73,6 +76,8 @@ export const strings = {
     power: "Power button",
   },
   appIconHint: "Used for the tray, taskbar and Dock",
+  showTimers: "Show timers on the main screen",
+  showTimersHint: "The tray menu always has them",
   activity: "Activity",
   nudgeEnabled: "Simulate input",
   nudgeEnabledHint: "Off keeps the system awake without touching input",

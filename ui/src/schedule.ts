@@ -3,6 +3,7 @@
 // validates it and the screen redraws from what was kept.
 
 import { strings } from "./strings";
+import { timeField } from "./time-picker";
 
 /** Mirrors `Weekdays::NAMES` in crates/core/src/schedule.rs. */
 export const WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
@@ -148,9 +149,13 @@ export function scheduleEditor(
       input.addEventListener("change", () => {
         if (!input.value) return;
         const all = windows().map((w, i) => (i === index ? { ...w, [field]: input.value.slice(0, 5) } : w));
-        void setWindows(all);
+        void setWindows(all).then(() => {
+          // The redraw replaced this row; keep the keyboard where it was.
+          if (document.activeElement !== document.body) return;
+          list.querySelector<HTMLElement>(`li:nth-child(${index + 1}) .time-toggle`)?.focus();
+        });
       });
-      return input;
+      return timeField(input);
     };
     const dash = document.createElement("span");
     dash.className = "unit";

@@ -62,6 +62,8 @@ pub struct Settings {
     pub theme: String,
     /// One of [`APP_ICONS`]. Sets the tray, window and Dock icons.
     pub app_icon: String,
+    /// The quick timers under the button. The tray menu always has them.
+    pub show_timers: bool,
     /// Turn ON and OFF on the weekly schedule (ROADMAP Phase 2).
     pub schedule_enabled: bool,
     /// `{"days": ["mon", …], "start": "09:00", "end": "18:00"}` each.
@@ -89,6 +91,7 @@ impl Default for Settings {
             button_style: BUTTON_STYLES[0].to_string(),
             theme: THEMES[0].to_string(),
             app_icon: APP_ICONS[0].to_string(),
+            show_timers: true,
             schedule_enabled: false,
             schedule_windows: Vec::new(),
             skip_dates: Vec::new(),
@@ -162,6 +165,7 @@ impl Settings {
                 let icon = value.as_str()?;
                 APP_ICONS.contains(&icon).then(|| icon.to_string())
             }),
+            show_timers: read.bool("showTimers", defaults.show_timers),
             schedule_enabled: read.bool("scheduleEnabled", defaults.schedule_enabled),
             schedule_windows: read.parse("scheduleWindows", Vec::new(), |value| {
                 let windows = value.as_array()?;
@@ -351,6 +355,7 @@ mod tests {
             button_style: "eye".into(),
             theme: "dark".into(),
             app_icon: "power".into(),
+            show_timers: false,
             schedule_enabled: true,
             schedule_windows: vec![
                 TimeWindow::new(Weekdays::WORKDAYS, 9 * 60, 18 * 60).unwrap(),
@@ -388,6 +393,7 @@ mod tests {
                 "buttonStyle": "sparkles",
                 "theme": "sepia",
                 "appIcon": "cat",
+                "showTimers": "yes",
                 "scheduleWindows": [{"days": ["mon"], "start": "09:00", "end": "25:00"}],
                 "skipDates": ["2026-02-30"]
             }"#,
@@ -410,6 +416,7 @@ mod tests {
                 "buttonStyle",
                 "theme",
                 "appIcon",
+                "showTimers",
                 "scheduleWindows",
                 "skipDates"
             ]
@@ -459,6 +466,7 @@ mod tests {
         assert_eq!(settings.button_style, "halo");
         assert_eq!(settings.theme, "system");
         assert_eq!(settings.app_icon, "eye");
+        assert!(settings.show_timers);
         assert!(!settings.schedule_enabled);
         assert!(settings.schedule_windows.is_empty());
     }

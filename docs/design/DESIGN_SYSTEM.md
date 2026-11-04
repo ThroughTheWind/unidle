@@ -74,7 +74,7 @@ Window 360 × 420 (SPEC FR-11, F-001), `radius-window`, `surface` → `surface-s
 
 ```
 ┌──────────────────────────────┐
-│ Unidle                    ⚙  │  title bar (label)
+│                           ⚙  │  icons only; Settings adds its title (label)
 │                              │
 │            ╭────╮            │
 │           │  ⏻   │           │  PowerButton, chosen style
@@ -118,6 +118,8 @@ Under Button style, an **App icon** segmented control: Wake eye (default) and Po
 - **StatusLine:** 8px dot or glyph plus text. Variants idle, active (with timer), starting, warning, error, scheduled. Always with text.
 - **Button:** 36 high, radius `md`. Primary = green gradient with `on-accent`; secondary = `power-off-face` with a `border` ring; ghost = `text-muted`. Never used for ON/OFF.
 - **IconButton:** 32 visual inside a 44 hit area, `text-muted`, `power-off-face` on hover, always with `aria-label`.
+- **Select:** `surface-sunken` field, 32 high, radius `md`, with a chevron. Its list uses the design where the webview allows it, and the OS's elsewhere.
+- **TimeField:** a native time input for typing, plus a clock button that opens an hour and minute popover: `surface`, radius `md`, the selection in the green gradient. Escape puts the old time back.
 - **Card:** `surface` → `surface-sunken`, 1px `border` ring, radius `lg`, padding 16.
 - **Tray icon:** follows the App icon setting. Wake eye: OFF is a closed eye in an outlined circle, ON an open eye on a filled green disc. Power button: OFF is an outlined power button, ON a filled green one. macOS uses monochrome template versions.
 
