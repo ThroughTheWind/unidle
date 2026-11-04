@@ -106,9 +106,10 @@ pub fn create(app: &AppHandle) -> tauri::Result<TrayMenu> {
         .icon_as_template(icons::TEMPLATE)
         .tooltip(strings::TOOLTIP_OFF)
         .menu(&menu)
-        // Left-click toggles on Windows and Linux; macOS opens the menu, as
-        // menu bar items do there (SPEC FR-2). Most Linux trays never report
-        // clicks, so the menu is the way to toggle there.
+        // Left-click toggles when the "click the tray icon" setting is on
+        // (the default on Windows and Linux; macOS menu bar items open their
+        // menu, SPEC FR-2). `apply_click` sets it once settings are read.
+        // Most Linux trays never report clicks, so the menu always toggles too.
         .show_menu_on_left_click(cfg!(target_os = "macos"))
         .on_menu_event(on_menu_event)
         .on_tray_icon_event(on_tray_event)
@@ -184,8 +185,20 @@ fn on_menu_event(app: &AppHandle, event: MenuEvent) {
     }
 }
 
+/// Follows the "click the tray icon to turn on or off" setting.
+pub fn apply_click(app: &AppHandle, toggles: bool) {
+    if let Some(tray) = app.tray_by_id(TRAY_ID) {
+        let _ = tray.set_show_menu_on_left_click(!toggles);
+    }
+}
+
 fn on_tray_event(tray: &TrayIcon, event: TrayIconEvent) {
-    if cfg!(target_os = "macos") {
+    if !tray
+        .app_handle()
+        .state::<crate::App>()
+        .settings()
+        .tray_click_toggles
+    {
         return;
     }
     if let TrayIconEvent::Click {

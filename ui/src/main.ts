@@ -44,6 +44,8 @@ interface Settings extends ScheduleSettings {
   buttonStyle: ButtonStyle;
   theme: Theme;
   appIcon: AppIcon;
+  showTimers: boolean;
+  trayClickToggles: boolean;
 }
 
 /** Mirrors `APP_ICONS` in crates/core/src/settings.rs. The first is the default. */
@@ -216,7 +218,7 @@ async function startTimer(args: { minutes: number } | { until: string }): Promis
 }
 
 function showUntil(open: boolean): void {
-  timers.hidden = open;
+  timers.hidden = open || settings?.showTimers === false;
   untilForm.hidden = !open;
   if (open) {
     untilTime.value = nextHour();
@@ -284,6 +286,8 @@ const keepDisplayOn = element<HTMLInputElement>("keep-display-on");
 const launchAtLogin = element<HTMLInputElement>("launch-at-login");
 const restoreLastState = element<HTMLInputElement>("restore-last-state");
 const notifyOnChange = element<HTMLInputElement>("notify-on-change");
+const showTimers = element<HTMLInputElement>("show-timers");
+const trayClickToggles = element<HTMLInputElement>("tray-click-toggles");
 const shortcutRecord = element<HTMLButtonElement>("shortcut-record");
 const shortcutClear = element<HTMLButtonElement>("shortcut-clear");
 const settingsError = element("settings-error");
@@ -411,6 +415,10 @@ function renderSettings(): void {
   launchAtLogin.checked = settings.launchAtLogin;
   restoreLastState.checked = settings.restoreLastState;
   notifyOnChange.checked = settings.notifyOnChange;
+  showTimers.checked = settings.showTimers;
+  trayClickToggles.checked = settings.trayClickToggles;
+  // The picker the tray asked for stays open even with the row hidden.
+  timers.hidden = !settings.showTimers || !untilForm.hidden;
 
   for (const row of settingsView.querySelectorAll<HTMLElement>("[data-needs-nudge]")) {
     const keyRow = row.hasAttribute("data-needs-key");
@@ -482,6 +490,8 @@ onToggle(keepDisplayOn, "keepDisplayOn");
 onToggle(launchAtLogin, "launchAtLogin");
 onToggle(restoreLastState, "restoreLastState");
 onToggle(notifyOnChange, "notifyOnChange");
+onToggle(showTimers, "showTimers");
+onToggle(trayClickToggles, "trayClickToggles");
 
 nudgeKey.addEventListener("change", () => void update({ nudgeKey: nudgeKey.value }));
 
@@ -542,7 +552,9 @@ function showView(name: "main" | "settings"): void {
   // The main screen stays uncluttered: only the update link sits there.
   openWebsite.hidden = !inSettings;
   shell.classList.toggle("in-settings", inSettings);
-  text("title", inSettings ? strings.settings : strings.appName);
+  // The main screen has no title: the button is the window. The OS title
+  // bar still names the app.
+  text("title", inSettings ? strings.settings : "");
   if (recording) stopRecording();
   showSettingsError(null);
   (inSettings ? back : power).focus();
@@ -558,7 +570,10 @@ window.addEventListener("keydown", (event) => {
 
 // ── Start ────────────────────────────────────────────────────────────────
 
-text("title", strings.appName);
+text("l-tray-click", strings.trayClickToggles);
+text("d-tray-click", strings.trayClickTogglesHint);
+text("l-show-timers", strings.showTimers);
+text("d-show-timers", strings.showTimersHint);
 text("h-appearance", strings.appearance);
 text("l-style", strings.buttonStyle);
 text("l-theme", strings.theme);

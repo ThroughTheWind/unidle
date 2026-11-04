@@ -532,3 +532,127 @@ label.row {
   padding: 0 var(--space-3);
   font-size: var(--text-caption);
 }
+
+/* ── Form controls (select, time and date pickers) ────────────────────── */
+
+/* Native popovers (the select list, the clock and calendar) follow the
+   window's theme, not only the OS's, and pick their accent from the brand. */
+:root {
+  color-scheme: light;
+  accent-color: var(--power-on);
+}
+
+.input {
+  transition:
+    box-shadow var(--duration-fast) var(--ease-standard),
+    background var(--duration-fast);
+}
+
+.input:hover:not(:disabled) {
+  background: var(--surface);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text-muted) 45%, var(--border));
+}
+
+.input:focus-visible {
+  outline-offset: 1px;
+}
+
+/* A select with its own chevron instead of each OS's arrow. */
+.select {
+  position: relative;
+  display: inline-flex;
+}
+
+.select select {
+  appearance: none;
+  min-width: 104px;
+  padding-right: 30px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+}
+
+.select::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 11px;
+  width: 7px;
+  height: 7px;
+  border-right: 1.6px solid var(--text-muted);
+  border-bottom: 1.6px solid var(--text-muted);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+}
+
+.select option {
+  background: var(--surface);
+  color: var(--text);
+}
+
+/* Time and date fields: a quieter picker button, and a filled highlight on
+   the part being edited (Chromium and WebKit; Safari draws its own). */
+input[type="time"],
+input[type="date"] {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  cursor: text;
+}
+
+input::-webkit-calendar-picker-indicator {
+  margin-left: 2px;
+  padding: 3px;
+  border-radius: var(--radius-sm);
+  opacity: 0.55;
+  cursor: pointer;
+  transition:
+    opacity var(--duration-fast),
+    background var(--duration-fast);
+}
+
+input::-webkit-calendar-picker-indicator:hover {
+  background: var(--power-off-face);
+  opacity: 1;
+}
+
+input::-webkit-datetime-edit-hour-field:focus,
+input::-webkit-datetime-edit-minute-field:focus,
+input::-webkit-datetime-edit-ampm-field:focus,
+input::-webkit-datetime-edit-day-field:focus,
+input::-webkit-datetime-edit-month-field:focus,
+input::-webkit-datetime-edit-year-field:focus {
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--power-on) 22%, transparent);
+  color: var(--text);
+}
+
+/* An empty date field reads as a placeholder. */
+input[type="date"]:invalid::-webkit-datetime-edit {
+  color: var(--text-muted);
+}
+
+/* The interval is typed; its spin arrows only crowded it. */
+.input-number::-webkit-inner-spin-button,
+.input-number::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.input-number {
+  appearance: textfield;
+}
+
+.as-btn.secondary {
+  transition:
+    background var(--duration-fast),
+    box-shadow var(--duration-fast);
+}
+
+.as-btn.secondary:hover:not(:disabled) {
+  background: var(--surface);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text-muted) 45%, var(--border));
+}
+
+.as-btn.secondary:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}

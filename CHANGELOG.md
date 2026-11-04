@@ -7,10 +7,16 @@ This project follows [Semantic Versioning](https://semver.org).
 ### Added
 
 - A weekly schedule: in Settings, "Turn on automatically" with as many times per day as you like (overnight too) and days off for holidays. Turning it off by hand during a scheduled time pauses it until that time ends. Times follow your local clock across daylight saving changes, and after sleep the app catches up within 15 seconds.
+- Settings can hide the timer row on the main screen (the tray keeps its timers), and can turn off "Click the tray icon to turn on or off". That is on by default on Windows and Linux, and when it's on, right-click opens the menu.
 - Import and export the schedule's times and days off as a file, to back it up or use it on another computer.
 
 - Quick timers: keep the computer awake for 15 minutes, 30 minutes, 1 hour, 2 hours or until a time, from the tray's "Keep awake for" menu or the row under the button. When the timer ends, it turns off, or the schedule takes over.
 - The tray and window say why the app is on and what happens next: "Timer · OFF at 18:00", "Scheduled · ON tomorrow at 09:00", "Schedule paused until 18:00".
+
+### Changed
+
+- The main screen no longer shows the "Unidle" title: the button is the window.
+- Lists, time and date fields look cleaner, and their pop-ups follow the app's Light or Dark theme.
 
 ## 0.1.0
 
