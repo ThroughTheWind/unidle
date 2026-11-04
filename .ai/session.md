@@ -8,11 +8,11 @@ Keep it short. This document is read at the start of every session, and a long o
 
 ## Current objective
 
-Phase 2 of the [roadmap](../docs/ROADMAP.md): timers and scheduling (SPEC §10). Phase 1 shipped as v0.1.0.
+Phase 2 of the [roadmap](../docs/ROADMAP.md), timers and scheduling (SPEC §10), shipped as v0.2.0. Phase 1 shipped as v0.1.0.
 
 ## In progress
 
-Phase 2 is four stacked PRs: WI-009 (core: precedence, schedule, DST and sleep/resume), WI-010 (tray and window timers, the source line), WI-011 (schedule editor in Settings) and WI-012 (import and export). Phase 1 items stay at `review` until their real-machine criteria are met.
+Phase 2 is merged: WI-009 (core: precedence, schedule, DST and sleep/resume), WI-010 (tray and window timers, the source line), WI-011 (schedule editor in Settings), WI-012 (import and export) and WI-013 (window polish). Phase 1 items stay at `review` until their real-machine criteria are met.
 
 ## Resume from
 
@@ -20,9 +20,8 @@ Run the open real-machine criteria of WI-009 to WI-012 on Windows, macOS and Lin
 
 ## Up next
 
-1. A v0.2.0 release once the Phase 2 PRs are merged. Tags are pushed by Antoine.
-2. WI-003, footprint measurement, now with `jiff` and the dialog plugin in the build.
-3. Phase 3. Open question: whether printable typing ships in the core or as a plugin (ROADMAP open question 1).
+1. WI-003, footprint measurement, now with `jiff` and the dialog plugin in the build.
+2. Phase 3. Open question: whether printable typing ships in the core or as a plugin (ROADMAP open question 1).
 
 ## Active constraints — do not reopen
 
