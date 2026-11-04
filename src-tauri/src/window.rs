@@ -57,3 +57,19 @@ pub fn on_closed(app: &AppHandle) {
         crate::settings::record(app, |settings| settings.tray_notice_shown = true);
     }
 }
+
+/// Opens the window on the "until a time" timer picker, from the tray. A
+/// window built just now asks for the request once it has loaded; one that
+/// was already open gets the event.
+pub fn show_timer_picker(app: &AppHandle) {
+    use std::sync::atomic::Ordering;
+    use tauri::Emitter as _;
+
+    app.state::<crate::App>()
+        .timer_picker_requested
+        .store(true, Ordering::SeqCst);
+    show(app);
+    let _ = app.emit(TIMER_PICKER_EVENT, ());
+}
+
+pub const TIMER_PICKER_EVENT: &str = "show-timer-picker";

@@ -6,6 +6,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { type ButtonStyle, BUTTON_STYLES, buttonStyle, setButtonStyle } from "./power-button";
 import { shortcutFromEvent } from "./shortcut";
 import { strings } from "./strings";
+import { nextHour, shortWhen, when } from "./when";
 
 interface Status {
   on: boolean;
@@ -13,6 +14,12 @@ interface Status {
   powerAssertion: boolean;
   nudging: boolean;
   inputUnavailable: "needsPermission" | "wayland" | "noDisplay" | "unsupported" | null;
+  /** Who turned it on (SPEC SC-4). */
+  source: "manual" | "timer" | "schedule" | null;
+  /** The next time a timer or the schedule turns it ON or OFF; ms since the epoch. */
+  nextChange: { at: number; on: boolean } | null;
+  /** While a manual OFF pauses a schedule window: when the window ends. */
+  pausedUntil: number | null;
 }
 
 type NudgeMethod = "pointer" | "keystroke" | "both";
@@ -72,6 +79,8 @@ const timer = element("timer");
 const statusLine = element("status");
 const statusText = element("status-text");
 const statusAction = element<HTMLButtonElement>("status-action");
+const detail = element("detail");
+const detailText = element("detail-text");
 
 let status: Status | null = null;
 let settings: Settings | null = null;
@@ -121,6 +130,8 @@ function renderStatus(): void {
     timer.textContent = eye ? strings.clickToWake : strings.clickToStart;
   }
 
+  renderDetail(status);
+
   // Only what needs attention gets a line; the state word says the rest.
   const wantsNudges = settings?.nudgeEnabled ?? true;
   statusAction.hidden = true;
@@ -136,6 +147,26 @@ function renderStatus(): void {
   } else {
     setStatusLine(null);
   }
+}
+
+/** "Timer · OFF at 18:00", "Scheduled · ON tomorrow at 09:00" (SPEC SC-4). */
+function renderDetail(current: Status): void {
+  let line: string | null = null;
+  const next = current.nextChange ? strings.nextChange(current.nextChange.on, when(current.nextChange.at)) : null;
+  if (current.pausedUntil !== null) {
+    line = strings.paused(shortWhen(current.pausedUntil));
+  } else if (current.source !== null) {
+    const source = strings.sources[current.source];
+    line = next ? `${source} · ${next}` : source;
+  } else if (next) {
+    // OFF: only the schedule plans an ON.
+    line = `${strings.sources.schedule} · ${next}`;
+  }
+  detail.hidden = line === null;
+  // Blue is for scheduling (design system), so a plain manual ON stays muted.
+  const planned = current.nextChange !== null || current.pausedUntil !== null;
+  detail.className = `as-status detail-line ${planned ? "scheduled" : "idle"}`;
+  detailText.textContent = line ?? "";
 }
 
 function applyStatus(next: Status): void {
@@ -162,6 +193,70 @@ power.addEventListener("click", async () => {
     toggleError = `${on ? strings.turnOnFailed : strings.turnOffFailed}: ${message(error)}`;
     pending = null;
     await refreshStatus();
+  }
+});
+
+// ── Quick timers ─────────────────────────────────────────────────────────
+
+const timers = element("timers");
+const untilForm = element<HTMLFormElement>("until-form");
+const untilTime = element<HTMLInputElement>("until-time");
+const untilCancel = element<HTMLButtonElement>("until-cancel");
+
+async function startTimer(args: { minutes: number } | { until: string }): Promise<void> {
+  if (pending !== null) return;
+  try {
+    applyStatus(await invoke<Status>("start_timer", args));
+    toggleError = null;
+  } catch (error) {
+    toggleError = `${strings.timerFailed}: ${message(error)}`;
+    await refreshStatus();
+  }
+}
+
+function showUntil(open: boolean): void {
+  timers.hidden = open;
+  untilForm.hidden = !open;
+  if (open) {
+    untilTime.value = nextHour();
+    untilTime.focus();
+  } else {
+    timers.querySelector<HTMLButtonElement>("[data-until]")?.focus();
+  }
+}
+
+timers.setAttribute("aria-label", strings.keepAwakeFor);
+for (const timer of strings.timers) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "as-btn secondary timer";
+  button.textContent = timer.label;
+  button.setAttribute("aria-label", `${strings.keepAwakeFor} ${timer.name}`);
+  button.title = button.getAttribute("aria-label") ?? "";
+  button.addEventListener("click", () => void startTimer({ minutes: timer.minutes }));
+  timers.append(button);
+}
+const untilButton = document.createElement("button");
+untilButton.type = "button";
+untilButton.className = "as-btn secondary timer";
+untilButton.dataset.until = "";
+untilButton.textContent = strings.timerUntil;
+untilButton.setAttribute("aria-label", `${strings.keepAwakeFor}: ${strings.timerUntilName}`);
+untilButton.title = strings.timerUntilName;
+untilButton.addEventListener("click", () => showUntil(true));
+timers.append(untilButton);
+
+untilForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  if (!untilTime.value) return;
+  showUntil(false);
+  void startTimer({ until: untilTime.value.slice(0, 5) });
+});
+untilCancel.addEventListener("click", () => showUntil(false));
+untilForm.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    event.stopPropagation();
+    showUntil(false);
   }
 });
 
@@ -448,6 +543,9 @@ text("l-notify", strings.notifyOnChange);
 text("l-shortcut", strings.shortcut);
 text("d-shortcut", strings.shortcutHint);
 shortcutClear.textContent = strings.shortcutClear;
+text("l-until", strings.untilLabel);
+text("until-start", strings.untilStart);
+text("until-cancel", strings.untilCancel);
 power.setAttribute("aria-label", strings.toggleLabel);
 openSettings.setAttribute("aria-label", strings.openSettings);
 back.setAttribute("aria-label", strings.back);
@@ -478,7 +576,20 @@ await listen<Status>("status-changed", (event) => {
   applyStatus(event.payload);
 });
 
+// "Until a time…" in the tray opens the window on the picker.
+async function takeTimerPickerRequest(): Promise<void> {
+  if (await invoke<boolean>("take_timer_picker_request")) {
+    showView("main");
+    showUntil(true);
+  }
+}
+await listen("show-timer-picker", () => void takeTimerPickerRequest());
+await takeTimerPickerRequest();
+
 await refreshStatus();
 setInterval(() => {
-  if (status?.on && pending === null) void refreshStatus();
+  if (pending !== null) return;
+  // ON: the elapsed time. OFF with a change planned: "tomorrow" becomes today.
+  if (status?.on) void refreshStatus();
+  else if (status?.nextChange) renderDetail(status);
 }, 1000);

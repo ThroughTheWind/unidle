@@ -20,7 +20,9 @@ pub use nudge::{DEFAULT_INTERVAL, MAX_INTERVAL, MIN_INTERVAL, NudgeConfig, Nudge
 pub use platform::{
     Input, PowerAssertion, PowerOptions, open_input_permission_settings, request_input_permission,
 };
-pub use schedule::{MINUTES_PER_DAY, Schedule, TimeWindow, Weekdays, format_time, parse_time};
+pub use schedule::{
+    MINUTES_PER_DAY, Schedule, TimeWindow, Weekdays, format_time, next_local_time, parse_time,
+};
 pub use settings::{APP_ICONS, BUTTON_STYLES, Settings, THEMES};
 pub use system::SystemAdapter;
 pub use ticker::Ticker;
