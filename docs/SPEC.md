@@ -27,7 +27,7 @@ v1 is intentionally minimal: one toggle, sensible defaults, no account, no netwo
 5. Be trivially auditable: small codebase, no network, no telemetry, permissive open-source license.
 
 ### Non-goals (v1)
-- Scheduling, calendars or time windows (Phase 2, §10).
+- Scheduling, calendars or time windows (Phase 2, §10; calendars are Phase 4).
 - Typing real text, scripting, macros, or "human-like" behavior profiles. v1 only sends non-printing keystrokes. Richer keystroke simulation is planned for later phases (see [ROADMAP.md](ROADMAP.md)).
 - Remote control, multi-device sync, cloud features, accounts.
 - Hiding the app from task managers or system monitors. The app is always visible and honest about running.
@@ -145,17 +145,22 @@ Rules:
 8. Closing the window keeps the app running in the tray; Quit from the tray exits and releases everything.
 9. The app makes zero outbound network connections (verified with a network monitor).
 
-## 10. Phase 2: Scheduling (future)
+## 10. Phase 2: Scheduling
 
-Not in v1, but v1 should not block it. The full phased plan and the feature candidates are in [ROADMAP.md](ROADMAP.md). The settings model and the "simulation controller" should treat the toggle as one input among several so a scheduler can drive it later.
+Phase 2 of the [roadmap](ROADMAP.md). The toggle is one input among several: the user, a timer and a weekly schedule each say whether simulation should be ON, and the controller decides between them.
 
-Planned capabilities:
-- **Schedules:** one or more weekly time windows (e.g. Mon to Fri, 09:00 to 18:00) during which simulation is automatically ON.
-- **Timers:** "ON for 30 min / 1 h / 2 h / until 18:00" quick actions from the tray menu.
-- **Mode indicator:** state shows its source: Manual, Scheduled or Timer ("ON, scheduled until 18:00").
-- **Precedence rules (proposed):** a manual toggle always wins until the next schedule boundary; timers override schedules; turning OFF manually during a scheduled window pauses it until the window ends.
-- **Conditions (candidate):** only when on AC power; only when a given app is running; stop when the screen is locked.
-- **Time handling:** local time zone, correct across DST changes and sleep/resume.
+- **SC-1 Schedules:** one or more weekly time windows (e.g. Mon to Fri, 09:00 to 18:00) during which simulation is automatically ON. Times are local wall-clock times. A window whose end is at or before its start runs overnight into the next day. Overlapping windows merge.
+- **SC-2 Skip days:** dates on which the schedule doesn't run (holidays). A window that starts on a skip day is skipped.
+- **SC-3 Timers:** "ON for 15 min / 30 min / 1 h / 2 h / until HH:MM" quick actions from the tray menu and the window. "Until" a time already past today means tomorrow.
+- **SC-4 Source indicator:** the state shows its source, Manual, Timer or Scheduled, and the next change ("Timer: OFF at 18:00", "Scheduled: ON at 09:00").
+- **SC-5 Precedence:**
+  - The most recent manual action or timer wins over the schedule. A manual action cancels a running timer, and a new timer replaces a manual action.
+  - A manual ON or OFF that differs from the schedule holds until the schedule next changes. Turning OFF during a window pauses it until the window ends. Turning ON outside one keeps it ON until the next window starts, and the schedule takes over from there. A manual action that matches the schedule (ON again during a paused window) resumes following it.
+  - A timer keeps simulation ON until it ends. Then the schedule decides: still ON inside a window, OFF otherwise.
+  - Without an enabled schedule, a manual change holds until the next one, as in v1.
+- **SC-6 Time handling:** the state is computed from the wall clock and the system time zone each time it is checked, at least every 15 seconds while a timer or schedule runs. A DST change never moves a window's local times, and after a sleep or resume the app lands in the right state within 15 seconds without replaying what it missed.
+- **SC-7 Quitting** always turns OFF, whatever a timer or schedule wants. Timers are not kept across a restart; the schedule is.
+- **Conditions (candidate, Phase 4):** only when on AC power; only when a given app is running; stop when the screen is locked.
 
 ## 11. Architecture constraints (stack-agnostic)
 

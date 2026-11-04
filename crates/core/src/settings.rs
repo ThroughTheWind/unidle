@@ -3,12 +3,20 @@
 
 use std::time::Duration;
 
+use jiff::civil::Date;
 use serde::Serialize;
+use serde::ser::SerializeSeq as _;
 use serde_json::{Map, Value};
 
 use crate::adapter::NudgeKey;
 use crate::nudge::{DEFAULT_INTERVAL, MAX_INTERVAL, MIN_INTERVAL, NudgeConfig, NudgeMethod};
 use crate::platform::PowerOptions;
+use crate::schedule::{Schedule, TimeWindow, Weekdays, format_time, parse_time};
+
+/// Enough for any real week, small enough that a bad file can't make every
+/// tick slow.
+pub const MAX_SCHEDULE_WINDOWS: usize = 50;
+pub const MAX_SKIP_DATES: usize = 400;
 
 /// The window's ON/OFF button designs (design system). The first is the
 /// default.
@@ -52,6 +60,14 @@ pub struct Settings {
     pub theme: String,
     /// One of [`APP_ICONS`]. Sets the tray, window and Dock icons.
     pub app_icon: String,
+    /// Turn ON and OFF on the weekly schedule (ROADMAP Phase 2).
+    pub schedule_enabled: bool,
+    /// `{"days": ["mon", …], "start": "09:00", "end": "18:00"}` each.
+    #[serde(serialize_with = "windows_json")]
+    pub schedule_windows: Vec<TimeWindow>,
+    /// `"2026-12-25"` each: days the schedule doesn't run.
+    #[serde(serialize_with = "dates_json")]
+    pub skip_dates: Vec<Date>,
 }
 
 impl Default for Settings {
@@ -71,6 +87,9 @@ impl Default for Settings {
             button_style: BUTTON_STYLES[0].to_string(),
             theme: THEMES[0].to_string(),
             app_icon: APP_ICONS[0].to_string(),
+            schedule_enabled: false,
+            schedule_windows: Vec::new(),
+            skip_dates: Vec::new(),
         }
     }
 }
@@ -141,6 +160,27 @@ impl Settings {
                 let icon = value.as_str()?;
                 APP_ICONS.contains(&icon).then(|| icon.to_string())
             }),
+            schedule_enabled: read.bool("scheduleEnabled", defaults.schedule_enabled),
+            schedule_windows: read.parse("scheduleWindows", Vec::new(), |value| {
+                let windows = value.as_array()?;
+                if windows.len() > MAX_SCHEDULE_WINDOWS {
+                    return None;
+                }
+                windows.iter().map(window_from_json).collect()
+            }),
+            skip_dates: read.parse("skipDates", Vec::new(), |value| {
+                let dates = value.as_array()?;
+                if dates.len() > MAX_SKIP_DATES {
+                    return None;
+                }
+                let mut dates: Vec<Date> = dates
+                    .iter()
+                    .map(|date| date.as_str()?.parse().ok())
+                    .collect::<Option<_>>()?;
+                dates.sort_unstable();
+                dates.dedup();
+                Some(dates)
+            }),
         };
         (settings, fallbacks)
     }
@@ -162,6 +202,14 @@ impl Settings {
     pub fn power_options(&self) -> PowerOptions {
         PowerOptions {
             keep_display_on: self.keep_display_on,
+        }
+    }
+
+    pub fn schedule(&self) -> Schedule {
+        Schedule {
+            enabled: self.schedule_enabled,
+            windows: self.schedule_windows.clone(),
+            skip_dates: self.skip_dates.clone(),
         }
     }
 
@@ -208,6 +256,37 @@ fn method_name<S: serde::Serializer>(
     })
 }
 
+fn window_from_json(value: &Value) -> Option<TimeWindow> {
+    let days = value
+        .get("days")?
+        .as_array()?
+        .iter()
+        .map(Value::as_str)
+        .collect::<Option<Vec<_>>>()?;
+    let start = parse_time(value.get("start")?.as_str()?)?;
+    let end = parse_time(value.get("end")?.as_str()?)?;
+    TimeWindow::new(Weekdays::from_names(days)?, start, end)
+}
+
+fn windows_json<S: serde::Serializer>(
+    windows: &[TimeWindow],
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    let mut seq = serializer.serialize_seq(Some(windows.len()))?;
+    for window in windows {
+        seq.serialize_element(&serde_json::json!({
+            "days": window.days.names(),
+            "start": format_time(window.start),
+            "end": format_time(window.end),
+        }))?;
+    }
+    seq.end()
+}
+
+fn dates_json<S: serde::Serializer>(dates: &[Date], serializer: S) -> Result<S::Ok, S::Error> {
+    serializer.collect_seq(dates.iter().map(ToString::to_string))
+}
+
 fn key_name<S: serde::Serializer>(key: &NudgeKey, serializer: S) -> Result<S::Ok, S::Error> {
     serializer.serialize_str(key.name())
 }
@@ -233,6 +312,12 @@ mod tests {
             button_style: "eye".into(),
             theme: "dark".into(),
             app_icon: "power".into(),
+            schedule_enabled: true,
+            schedule_windows: vec![
+                TimeWindow::new(Weekdays::WORKDAYS, 9 * 60, 18 * 60).unwrap(),
+                TimeWindow::new(Weekdays::from_names(["sat"]).unwrap(), 22 * 60, 1440).unwrap(),
+            ],
+            skip_dates: vec![jiff::civil::date(2026, 12, 25)],
         };
         let (read, fallbacks) = Settings::from_json(&settings.to_json());
         assert_eq!(read, settings);
@@ -263,7 +348,9 @@ mod tests {
                 "globalShortcut": 42,
                 "buttonStyle": "sparkles",
                 "theme": "sepia",
-                "appIcon": "cat"
+                "appIcon": "cat",
+                "scheduleWindows": [{"days": ["mon"], "start": "09:00", "end": "25:00"}],
+                "skipDates": ["2026-02-30"]
             }"#,
         );
         assert_eq!(
@@ -283,7 +370,9 @@ mod tests {
                 "globalShortcut",
                 "buttonStyle",
                 "theme",
-                "appIcon"
+                "appIcon",
+                "scheduleWindows",
+                "skipDates"
             ]
         );
     }
@@ -331,5 +420,46 @@ mod tests {
         assert_eq!(settings.button_style, "halo");
         assert_eq!(settings.theme, "system");
         assert_eq!(settings.app_icon, "eye");
+        assert!(!settings.schedule_enabled);
+        assert!(settings.schedule_windows.is_empty());
+    }
+
+    #[test]
+    fn schedule_json_reads_like_people_write_it() {
+        let (settings, fallbacks) = Settings::from_json(
+            r#"{
+                "scheduleEnabled": true,
+                "scheduleWindows": [
+                    {"days": ["mon", "tue", "wed", "thu", "fri"], "start": "09:00", "end": "18:00"},
+                    {"days": ["sun"], "start": "22:00", "end": "06:00"}
+                ],
+                "skipDates": ["2026-12-25", "2026-12-24", "2026-12-25"]
+            }"#,
+        );
+        assert!(fallbacks.is_empty());
+        let schedule = settings.schedule();
+        assert!(schedule.is_active());
+        assert_eq!(schedule.windows[0].days, Weekdays::WORKDAYS);
+        assert_eq!(
+            (schedule.windows[1].start, schedule.windows[1].end),
+            (1320, 360)
+        );
+        assert_eq!(
+            schedule.skip_dates,
+            [
+                jiff::civil::date(2026, 12, 24),
+                jiff::civil::date(2026, 12, 25)
+            ],
+            "sorted, without duplicates"
+        );
+    }
+
+    #[test]
+    fn a_window_without_days_is_invalid() {
+        let (settings, fallbacks) = Settings::from_json(
+            r#"{"scheduleWindows": [{"days": [], "start": "09:00", "end": "18:00"}]}"#,
+        );
+        assert!(settings.schedule_windows.is_empty());
+        assert_eq!(fallbacks, ["scheduleWindows"]);
     }
 }

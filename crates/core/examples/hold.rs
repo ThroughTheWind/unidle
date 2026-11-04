@@ -11,7 +11,7 @@
 
 use std::time::Duration;
 
-use unidle_core::{Controller, PowerOptions, Source, SystemAdapter};
+use unidle_core::{Controller, PowerOptions, SystemAdapter};
 
 fn main() {
     let mut seconds = 60;
@@ -28,7 +28,7 @@ fn main() {
     }
 
     let mut controller = Controller::new(SystemAdapter::new(options));
-    if let Err(error) = controller.turn_on(Source::Manual) {
+    if let Err(error) = controller.turn_on() {
         eprintln!("could not acquire the power assertion: {error}");
         std::process::exit(1);
     }

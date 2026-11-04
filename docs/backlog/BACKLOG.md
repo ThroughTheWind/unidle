@@ -6,7 +6,7 @@
 The board. One row per live work item, grouped by status. Items live in
 [`items/`](items/); finished work moves to [`archive/`](archive/).
 
-<!-- NEXT-ID: WI-009 -->
+<!-- NEXT-ID: WI-010 -->
 <!-- Claim from this marker and bump it on your own branch. `node .ai/rungs.mjs check` refuses a duplicate. -->
 
 ## In progress
@@ -26,6 +26,7 @@ The board. One row per live work item, grouped by status. Items live in
 | [WI-006](items/WI-006-landing-page.md) | Publish a one-page landing site with per-OS downloads | feature | `feature/WI-006-landing-page` |
 | [WI-007](items/WI-007-window-ui.md) | Build the window and settings screen with the four power button styles | feature | `feature/WI-007-window-ui` |
 | [WI-008](items/WI-008-app-icon.md) | Redesign the app and tray icons, with a Wake eye default and an App icon setting | feature | `feature/WI-008-app-icon` |
+| [WI-009](items/WI-009-scheduling-core.md) | Decide ON/OFF between manual, timers and a weekly schedule in the core | feature | `feature/WI-009-scheduling-core` |
 
 ## Planned
 
