@@ -162,30 +162,62 @@
     <div class="wrap">
       <p class="eyebrow">Limitations</p>
       <h2 id="limitations-title">Know before you install.</h2>
-      <p class="section-lede">Unidle is honest about what it does and doesn't do. A few things to know first.</p>
-      <div class="limits">
-        <article class="limit limit-wide">
-          <h3><span class="as-status warning"><span class="dot"></span></span>On a work computer, assume it can be seen</h3>
-          <p>Managed work and school machines usually run device management, security and activity-tracking software. IT can typically see the apps you install, the processes you run and simulated input. Unidle doesn't hide from any of this and never will.</p>
-          <p>Check your organization's IT policy before installing, or ask your IT team. If you only need the screen to stay on for a presentation or a long build, turn off <em>Simulate input</em> in Settings: Unidle then only asks the OS not to sleep. Using it to look active when you aren't working can break your employer's rules, and people have lost their jobs over it.</p>
-        </article>
-        <article class="limit">
-          <h3>Wayland on Linux</h3>
-          <p>Wayland doesn't let apps move the pointer, so Unidle keeps the system awake without the nudge. Chat apps may still show you as Away.</p>
-        </article>
-        <article class="limit">
-          <h3>macOS permission</h3>
-          <p>The pointer nudge needs the Accessibility permission. Without it, Unidle still keeps your Mac awake.</p>
-        </article>
-        <article class="limit">
-          <h3>Schedules need the app running</h3>
-          <p>The schedule can only turn Unidle on while it's running. Turn on <em>Launch at login</em> so it's always there.</p>
-        </article>
-        <article class="limit">
-          <h3>Not code-signed yet</h3>
-          <p>Windows SmartScreen and macOS Gatekeeper ask you to confirm the first launch, and some security tools flag unsigned apps.</p>
-        </article>
-      </div>
+      <p class="section-lede">Unidle doesn't hide and doesn't promise what it can't do. Read this first, especially on a work computer.</p>
+
+      <article class="work" aria-labelledby="work-title">
+        <div class="work-intro">
+          <span class="work-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span>
+          <h3 id="work-title">On a work or school computer, assume it can be seen.</h3>
+          <p>Managed machines usually run device management, security and activity-tracking tools, and Unidle makes no attempt to avoid them. Keeping your screen on for a talk or a long build is a normal need. Using Unidle to look active when you aren't working is not: many employers treat it as misconduct, and people have lost their jobs over it.</p>
+        </div>
+        <div class="work-cols">
+          <div>
+            <h4>What IT can usually see</h4>
+            <ul class="ticks see">
+              <li>That Unidle is installed and running</li>
+              <li>That it's keeping the computer awake</li>
+              <li>The simulated pointer movement</li>
+              <li>Activity that doesn't match real work</li>
+            </ul>
+          </div>
+          <div>
+            <h4>What to do</h4>
+            <ul class="ticks do">
+              <li>Check your IT and acceptable-use policy, or ask IT</li>
+              <li>Turn off <em>Simulate input</em> in Settings: Unidle then only asks the OS not to sleep</li>
+              <li>If IT already approves a built-in like PowerToys Awake or <code>caffeinate</code>, use that</li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <h3 class="limits-title">What doesn't work everywhere</h3>
+      <ul class="limits">
+        <li class="limit">
+          <span class="tag">Linux · Wayland</span>
+          <p class="limit-what">No pointer nudge</p>
+          <p>Wayland doesn't let apps move the pointer, so chat apps may still show you as Away.</p>
+          <p class="still"><span aria-hidden="true">✓</span> Still keeps the system awake</p>
+        </li>
+        <li class="limit">
+          <span class="tag">macOS</span>
+          <p class="limit-what">Nudge needs a permission</p>
+          <p>Moving the pointer needs the Accessibility permission, and Unidle links you to the setting.</p>
+          <p class="still"><span aria-hidden="true">✓</span> Still keeps your Mac awake without it</p>
+        </li>
+        <li class="limit">
+          <span class="tag">All systems</span>
+          <p class="limit-what">Schedules need the app running</p>
+          <p>A schedule can only turn Unidle on while the app is open or in the tray.</p>
+          <p class="still"><span aria-hidden="true">✓</span> Turn on <em>Launch at login</em> and it always is</p>
+        </li>
+        <li class="limit">
+          <span class="tag">Windows · macOS</span>
+          <p class="limit-what">Not code-signed yet</p>
+          <p>SmartScreen and Gatekeeper ask you to confirm the first launch, and some security tools flag unsigned apps.</p>
+          <p class="still"><span aria-hidden="true">✓</span> Or <a href="https://github.com/ThroughTheWind/unidle#develop">build it from source</a></p>
+        </li>
+      </ul>
     </div>
   </section>
 
