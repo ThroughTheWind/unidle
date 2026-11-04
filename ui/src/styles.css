@@ -520,3 +520,15 @@ label.row {
 .empty {
   padding: var(--space-1) 0;
 }
+
+.file-actions {
+  display: inline-flex;
+  flex: none;
+  gap: var(--space-1);
+}
+
+.file-actions .as-btn {
+  height: 32px;
+  padding: 0 var(--space-3);
+  font-size: var(--text-caption);
+}

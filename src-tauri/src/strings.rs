@@ -30,6 +30,8 @@ pub const TIMERS: [(u32, &str); 4] = [
     (120, "2 hours"),
 ];
 pub const TIMER_UNTIL: &str = "Until a time…";
+pub const SCHEDULE_FILE_NAME: &str = "unidle-schedule.json";
+pub const SCHEDULE_FILE_FILTER: &str = "Unidle schedule";
 
 /// "Activity: ON for 1 h 12 min" (SPEC FR-5).
 pub fn status_on(elapsed: Duration) -> String {

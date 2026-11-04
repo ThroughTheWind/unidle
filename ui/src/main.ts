@@ -440,6 +440,39 @@ async function update(patch: Partial<Settings>): Promise<void> {
 
 const renderSchedule = scheduleEditor(() => settings, update, showSettingsError);
 
+// Import and export (ROADMAP Phase 2). The dialogs are opened by the Rust side.
+text("l-schedule-file", strings.scheduleFile);
+text("d-schedule-file", strings.scheduleFileHint);
+const scheduleImport = element<HTMLButtonElement>("schedule-import");
+const scheduleExport = element<HTMLButtonElement>("schedule-export");
+scheduleImport.textContent = strings.importSchedule;
+scheduleExport.textContent = strings.exportSchedule;
+
+/** Says it worked on the button itself for a moment, then puts the label back. */
+function confirmOn(button: HTMLButtonElement, done: string, label: string): void {
+  button.textContent = done;
+  setTimeout(() => (button.textContent = label), 2000);
+}
+scheduleImport.addEventListener("click", async () => {
+  try {
+    const imported = await invoke<Settings | null>("import_schedule");
+    if (imported === null) return;
+    settings = imported;
+    showSettingsError(null);
+    renderSettings();
+    confirmOn(scheduleImport, strings.imported, strings.importSchedule);
+  } catch (error) {
+    showSettingsError(message(error));
+  }
+});
+scheduleExport.addEventListener("click", async () => {
+  try {
+    if (await invoke<boolean>("export_schedule")) confirmOn(scheduleExport, strings.exported, strings.exportSchedule);
+  } catch (error) {
+    showSettingsError(message(error));
+  }
+});
+
 function onToggle(input: HTMLInputElement, field: keyof Settings): void {
   input.addEventListener("change", () => void update({ [field]: input.checked }));
 }

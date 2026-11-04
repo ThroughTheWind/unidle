@@ -8,21 +8,21 @@ Keep it short. This document is read at the start of every session, and a long o
 
 ## Current objective
 
-Phase 1 of the [roadmap](../docs/ROADMAP.md), v1.0: everything in SPEC §5 to §9.
+Phase 2 of the [roadmap](../docs/ROADMAP.md): timers and scheduling (SPEC §10). Phase 1 shipped as v0.1.0.
 
 ## In progress
 
-All Phase 1 backend work is merged into `main`: #1 WI-001 power assertion, #2 WI-002 input nudges, #3 WI-004 tray and window lifecycle, #4 WI-005 settings backend, #5 the single-instance fix (F-004), plus #6 WI-006, the landing page in `site/`. Each item stays at `review` until its real-machine criteria, listed as open in its `## Review`, are met; WI-006 waits on the first GitHub Pages deploy.
+Phase 2 is four stacked PRs: WI-009 (core: precedence, schedule, DST and sleep/resume), WI-010 (tray and window timers, the source line), WI-011 (schedule editor in Settings) and WI-012 (import and export). Phase 1 items stay at `review` until their real-machine criteria are met.
 
 ## Resume from
 
-Run the open real-machine criteria in WI-001, WI-002, WI-004 and WI-005 on Windows, macOS and a Linux desktop (X11 and Wayland). The headless examples are `cargo run -p unidle-core --example hold` and `--example nudge`.
+Run the open real-machine criteria of WI-009 to WI-012 on Windows, macOS and Linux: a window starting a minute from now turns the app ON within 15 s, the tray timers, "Until a time…" with the window closed, and sleeping through a timer's end. Then the earlier Phase 1 criteria.
 
 ## Up next
 
-1. The window UI and settings screen, once Antoine picks the design. The backend commands `get_settings`, `update_settings` and `nudge_keys` exist. F-003 (a failed turn-ON is silent) goes with it.
-2. WI-003, footprint measurement on each OS with a release build.
-3. SPEC §9 acceptance pass on Windows 11, macOS 14+ and Ubuntu LTS, then the v1.0 release.
+1. A v0.2.0 release once the Phase 2 PRs are merged. Tags are pushed by Antoine.
+2. WI-003, footprint measurement, now with `jiff` and the dialog plugin in the build.
+3. Phase 3. Open question: whether printable typing ships in the core or as a plugin (ROADMAP open question 1).
 
 ## Active constraints — do not reopen
 
@@ -31,6 +31,7 @@ Run the open real-machine criteria in WI-001, WI-002, WI-004 and WI-005 on Windo
 
 ## Working assumptions
 
+- Schedules are local wall-clock times resolved per day with `jiff`, and the state is recomputed from the wall clock at least every 15 s while anything is scheduled. No OS resume events are used.
 - OS calls are direct, not through `keepawake` or `enigo` (ADR-0002, ADR-0003). The macOS FFI compiles and links in CI but hasn't run on a Mac.
 - Closing the webview while hidden keeps memory under the spec limit on macOS too. Measured on Windows (F-002) and in a Linux debug build on Xvfb (about 46 MB private, WI-003).
 - The local folder is still named `unidle`. The repo and everything in it are `unidle`.
