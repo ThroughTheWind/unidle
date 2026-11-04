@@ -1,41 +1,50 @@
-// Landing page behavior: the Halo demo, OS detection and download links.
+// Landing page behavior: the app demo, OS detection and download links.
 // Static links already point at GitHub's "latest release" asset URLs (versioned at deploy time);
 // when the GitHub API answers, they are replaced with the exact asset URLs of the latest release.
 (() => {
   const REPO = "ThroughTheWind/unidle";
   const RELEASES = `https://github.com/${REPO}/releases`;
 
-  // ---- Halo demo, with the quick timers ----
+  // ---- Demo of the app's main screen (ui/src/main.ts), with the quick timers ----
   const win = document.getElementById("demo");
   const power = document.getElementById("demo-power");
   const state = document.getElementById("demo-state");
   const timer = document.getElementById("demo-timer");
   const detail = document.getElementById("demo-detail");
-  const timerButtons = [...document.querySelectorAll(".demo-timers button")];
+  const detailText = document.getElementById("demo-detail-text");
+  const timerRow = document.getElementById("demo-timers");
+  const timerButtons = [...timerRow.querySelectorAll("button")];
   let started = 0;
   let endsAt = 0;
   let tick = 0;
   const fmt = (s) => [Math.floor(s / 3600), Math.floor(s / 60) % 60, s % 60].map((n) => String(n).padStart(2, "0")).join(":");
   const clock = (ms) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+  // "Until…" opens a time picker in the app, set to the next full hour; the demo just uses that hour.
+  const nextHour = () => { const d = new Date(); d.setHours(d.getHours() + 1, 0, 0, 0); return d.getTime(); };
   const render = () => {
     if (endsAt && Date.now() >= endsAt) { setOn(false); return; }
-    timer.textContent = `Keeping awake · ${fmt(Math.floor((Date.now() - started) / 1000))}`;
+    timer.textContent = fmt(Math.floor((Date.now() - started) / 1000));
   };
-  // The app shows who turned it on and the next change: "Timer · OFF at 18:00".
-  const setOn = (on, minutes = 0) => {
+  // Like the app: who turned it on, and the next change ("Timer · OFF at 18:00").
+  const setOn = (on, until = 0, pressed = null) => {
     power.setAttribute("aria-checked", String(on));
     win.classList.toggle("is-on", on);
     state.textContent = on ? "On" : "Off";
-    endsAt = on && minutes ? Date.now() + minutes * 60000 : 0;
-    detail.hidden = !endsAt;
-    detail.textContent = endsAt ? `Timer · OFF at ${clock(endsAt)}` : "";
-    timerButtons.forEach((b) => b.setAttribute("aria-pressed", String(Number(b.dataset.minutes) === minutes && on)));
+    endsAt = on ? until : 0;
+    detail.hidden = !on;
+    detail.className = `as-status demo-detail ${endsAt ? "scheduled" : "idle"}`;
+    detailText.textContent = endsAt ? `Timer · OFF at ${clock(endsAt)}` : "Manual";
+    timerButtons.forEach((b) => b.setAttribute("aria-pressed", String(on && b === pressed)));
     clearInterval(tick);
-    if (on) { if (!started || !minutes) started = Date.now(); render(); tick = setInterval(render, 1000); }
-    else { started = 0; timer.textContent = "Stopped"; }
+    if (on) { if (!started) started = Date.now(); render(); tick = setInterval(render, 1000); }
+    else { started = 0; timer.textContent = "Click to keep awake"; }
   };
   power.addEventListener("click", () => setOn(power.getAttribute("aria-checked") !== "true"));
-  timerButtons.forEach((b) => b.addEventListener("click", () => setOn(true, Number(b.dataset.minutes))));
+  timerButtons.forEach((b) => b.addEventListener("click", () => {
+    setOn(true, "until" in b.dataset ? nextHour() : Date.now() + Number(b.dataset.minutes) * 60000, b);
+  }));
+  // The timer row is optional in the app (Settings → "Timers on the main screen").
+  document.getElementById("demo-show-timers").addEventListener("change", (e) => { timerRow.hidden = !e.target.checked; });
 
   // ---- OS detection ----
   const ua = `${navigator.userAgentData?.platform ?? ""} ${navigator.platform ?? ""} ${navigator.userAgent}`.toLowerCase();
