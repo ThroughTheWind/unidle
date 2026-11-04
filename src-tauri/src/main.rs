@@ -2,6 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod app_icon;
+mod cli;
 mod settings;
 mod strings;
 mod tray;
@@ -26,7 +27,7 @@ const STATUS_EVENT: &str = "status-changed";
 /// How often the tray's "ON for …" line is refreshed.
 const TRAY_REFRESH: Duration = Duration::from_secs(30);
 /// Passed by the login item, so a launch at login starts in the tray.
-const HIDDEN_ARG: &str = "--hidden";
+pub(crate) const HIDDEN_ARG: &str = "--hidden";
 
 struct App {
     controller: Arc<Mutex<Controller<SystemAdapter>>>,
@@ -69,6 +70,8 @@ struct StatusDto {
     next_change: Option<NextChangeDto>,
     /// Milliseconds since the Unix epoch, while a manual OFF pauses a window.
     paused_until: Option<i64>,
+    /// ON without nudges, as `unidle on` asks (SPEC §13).
+    power_only: bool,
 }
 
 #[derive(Clone, Serialize)]
@@ -105,18 +108,29 @@ impl From<Status> for StatusDto {
                 on: change.on,
             }),
             paused_until: status.paused_until.map(Timestamp::as_millisecond),
+            power_only: status.power_only,
         }
     }
 }
 
 /// Turns simulation ON or OFF from any surface, then updates every surface.
 fn set_active(app: &AppHandle, on: bool) -> Result<Status, String> {
+    set_active_with(app, on, false)
+}
+
+/// Like [`set_active`]. With `power_only`, an ON sends no nudges until the
+/// next OFF, whatever the settings say (SPEC §13).
+pub(crate) fn set_active_with(
+    app: &AppHandle,
+    on: bool,
+    power_only: bool,
+) -> Result<Status, String> {
     let state = app.state::<App>();
     let (result, status) = {
         let mut controller = state.controller();
         let result = if on {
-            let wants_nudges = controller.nudge_config().enabled;
-            let result = controller.turn_on();
+            let wants_nudges = controller.nudge_config().enabled && !power_only;
+            let result = controller.set_manual_with(true, power_only, &Zoned::now());
             // macOS lists the app under Accessibility only once it asks, so
             // ask the first time nudges are wanted and the permission is
             // missing.
@@ -183,6 +197,15 @@ const MAX_TIMER_MINUTES: u32 = 24 * 60;
 
 /// Keeps simulation ON until the timer ends, then the schedule decides.
 pub(crate) fn start_timer(app: &AppHandle, length: TimerLength) -> Result<Status, String> {
+    start_timer_with(app, length, false)
+}
+
+/// Like [`start_timer`], with `power_only` as in [`set_active_with`].
+pub(crate) fn start_timer_with(
+    app: &AppHandle,
+    length: TimerLength,
+    power_only: bool,
+) -> Result<Status, String> {
     let now = Zoned::now();
     let until = match length {
         TimerLength::Minutes(minutes) if (1..=MAX_TIMER_MINUTES).contains(&minutes) => {
@@ -195,7 +218,7 @@ pub(crate) fn start_timer(app: &AppHandle, length: TimerLength) -> Result<Status
     let state = app.state::<App>();
     let (result, status) = {
         let mut controller = state.controller();
-        let result = controller.start_timer_at(until, &now);
+        let result = controller.start_timer_with(until, power_only, &now);
         (result, controller.status())
     };
     state.ticker.wake();
@@ -427,6 +450,13 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         window::show(&handle);
     }
 
+    // `unidle on` and friends from a terminal (SPEC §13). Without it the app
+    // still works; only the command line can't reach it.
+    let remote = handle.clone();
+    if let Err(error) = unidle_core::remote::serve(move |request| cli::handle(&remote, request)) {
+        eprintln!("command line: {error}");
+    }
+
     // Keeps the tray's "ON for …" and next change lines current.
     let refresher = handle.clone();
     std::thread::Builder::new()
@@ -444,7 +474,11 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn main() {
+fn main() -> std::process::ExitCode {
+    // `unidle on`, `unidle status`…: answered by the running app, then exit.
+    if let Some(code) = cli::run() {
+        return code;
+    }
     let controller = Arc::new(Mutex::new(Controller::new(SystemAdapter::default())));
     // The ticker starts before the app exists; it reaches the app once setup
     // has run.
@@ -528,4 +562,5 @@ fn main() {
             RunEvent::Reopen { .. } => window::show(app),
             _ => {}
         });
+    std::process::ExitCode::SUCCESS
 }

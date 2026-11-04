@@ -165,7 +165,7 @@ Phase 2 of the [roadmap](ROADMAP.md). The toggle is one input among several: the
 ## 11. Architecture constraints (stack-agnostic)
 
 These constraints apply whatever stack is chosen:
-- Separate the **simulation core** (platform adapters for power assertion and input nudge) from the **UI shell**, so the core is unit-testable and could also ship as a CLI (`unidle on|off|status`).
+- Separate the **simulation core** (platform adapters for power assertion and input nudge) from the **UI shell**, so the core is unit-testable and could also ship as a CLI (`unidle on|off|status`, §13).
 - One **controller** owns the state machine: `OFF → ON(source) → OFF`, with an event log kept in memory only.
 - Platform adapters expose a common interface: `acquire()`, `release()`, `nudge()`, `capabilities()`.
 - The UI only talks to the controller, never to OS APIs directly.
@@ -178,3 +178,22 @@ These constraints apply whatever stack is chosen:
 4. **Global shortcut default.** Ship unset, or with a default?
 5. **Code signing.** Is budget available for an Apple Developer ID and a Windows code-signing certificate?
 6. ~~**License.**~~ Resolved: MIT.
+
+## 13. Phase 4: Command line
+
+Phase 4 of the [roadmap](ROADMAP.md). The same `unidle` binary takes commands from a terminal, for scripts, remote sessions and people who prefer one. It drives the tray app; it is not a second, hidden way to run Unidle ([ADR-0004](decisions/ADR-0004-cli-drives-the-tray-app.md)).
+
+| Command | Effect |
+|---|---|
+| `unidle on` | ON, manual, until `unidle off` or any other OFF |
+| `unidle off` | OFF. Pauses a schedule window, like the toggle (SC-5) |
+| `unidle status` | The state, its source and next change, and whether nudges are sent |
+| `unidle timer <length>` | A timer (SC-3): `30m`, `1h`, `1h30m`, `45` (minutes) up to 24 h, or a time such as `18:00` |
+| `unidle help`, `--version` | Usage and version |
+
+- **CL-1 Power only by default.** `on` and `timer` hold the power assertion without input nudges, whatever the settings say, until the next OFF. `--nudge` asks for the nudges from Settings instead; `--power-only` says the default out loud. The latest ON decides: the window's toggle or the tray turning ON again follows the settings. Power-only covers presentations, renders and remote sessions without simulated input, the part that draws scrutiny on managed machines.
+- **CL-2 Always visible.** A command only reaches a running app. When `on` or `timer` finds none, it starts the app in the tray first, so every ON shows in the tray and quitting the app turns it OFF (SC-7). There is no daemon or background mode without the tray. `off` and `status` never start the app: not running is OFF.
+- **CL-3 Output.** Text by default, the same lines as the tray; `--json` prints the window's status object. Exit status 0 on success, 1 when the app refuses or can't be reached, 2 for a usage error.
+- **CL-4 Local only.** Commands travel over a Unix socket in a folder private to the user (`$XDG_RUNTIME_DIR`, else a `0700` folder in the temp folder), or a named pipe that refuses remote clients on Windows. No network (NFR-2), and the app ignores anything that isn't one short request.
+- **CL-5 Arguments the app doesn't know as a command** (such as `--hidden` from the login item) start the app as before. An unknown word is a usage error, so a typo never opens a window.
+

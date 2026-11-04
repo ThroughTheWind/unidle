@@ -10,6 +10,20 @@ When ON, the app asks the OS not to sleep and sends a tiny input event at an int
 
 **Responsible use:** the app simulates input only on your own machine. You are responsible for following your organization's IT and acceptable-use policies.
 
+## Command line
+
+The app's own binary takes commands. They drive the app in the tray, and start it there if it isn't running.
+
+```bash
+unidle on              # keep awake, power assertion only (no input nudges)
+unidle on --nudge      # also send the input nudges from Settings
+unidle timer 30m       # or 1h30m, or 18:00
+unidle status          # add --json for scripts
+unidle off
+```
+
+The `.deb` puts `unidle` on your `PATH`, and the AppImage takes the same commands. On Windows the binary is `unidle.exe` in the install folder, and on macOS it is `Unidle.app/Contents/MacOS/unidle`: add it to your `PATH` or link it. Details are in [SPEC §13](docs/SPEC.md#13-phase-4-command-line).
+
 ## Develop
 
 You need [Rust](https://rustup.rs) (stable), Node 22.18 or later, and the [Tauri system dependencies](https://v2.tauri.app/start/prerequisites/) for your OS.

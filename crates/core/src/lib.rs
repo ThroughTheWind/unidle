@@ -6,6 +6,7 @@ mod automation;
 mod controller;
 mod nudge;
 mod platform;
+pub mod remote;
 mod schedule;
 mod settings;
 mod system;
