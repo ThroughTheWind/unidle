@@ -126,6 +126,32 @@
           </section>
 
           <section class="group">
+            <h2 id="h-schedule" class="group-title"></h2>
+            <label class="row">
+              <span class="row-text">
+                <span id="l-schedule" class="row-label"></span>
+                <span id="d-schedule" class="row-hint"></span>
+              </span>
+              <input id="schedule-enabled" class="switch" type="checkbox" role="switch" />
+            </label>
+            <div id="schedule-body" class="schedule-body">
+              <ul id="schedule-windows" class="windows"></ul>
+              <button id="add-window" class="as-btn ghost add" type="button"></button>
+              <div class="field">
+                <span class="row-text">
+                  <span id="l-skip" class="field-label"></span>
+                  <span id="d-skip" class="row-hint"></span>
+                </span>
+                <ul id="skip-dates" class="skip-dates"></ul>
+                <form id="skip-form" class="skip-form">
+                  <input id="skip-date" class="input" type="date" required />
+                  <button id="skip-add" class="as-btn secondary" type="submit"></button>
+                </form>
+              </div>
+            </div>
+          </section>
+
+          <section class="group">
             <h2 id="h-system" class="group-title"></h2>
             <label class="row">
               <span id="l-display" class="row-label"></span>

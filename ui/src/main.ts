@@ -5,6 +5,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import { type ButtonStyle, BUTTON_STYLES, buttonStyle, setButtonStyle } from "./power-button";
 import { shortcutFromEvent } from "./shortcut";
+import { type ScheduleSettings, scheduleEditor } from "./schedule";
 import { strings } from "./strings";
 import { nextHour, shortWhen, when } from "./when";
 
@@ -28,7 +29,7 @@ const THEMES = ["system", "light", "dark"] as const;
 type Theme = (typeof THEMES)[number];
 
 /** The settings file's fields, as `get_settings` returns them. */
-interface Settings {
+interface Settings extends ScheduleSettings {
   nudgeEnabled: boolean;
   nudgeMethod: NudgeMethod;
   nudgeKey: string;
@@ -422,6 +423,7 @@ function renderSettings(): void {
     }
   }
   renderShortcut();
+  renderSchedule();
 }
 
 /** Sends a change; on failure, says why and shows what is actually kept. */
@@ -435,6 +437,8 @@ async function update(patch: Partial<Settings>): Promise<void> {
   renderSettings();
   renderStatus();
 }
+
+const renderSchedule = scheduleEditor(() => settings, update, showSettingsError);
 
 function onToggle(input: HTMLInputElement, field: keyof Settings): void {
   input.addEventListener("change", () => void update({ [field]: input.checked }));

@@ -403,3 +403,120 @@ label.row {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
+
+/* ── Schedule (SPEC SC-1, SC-2) ───────────────────────────────────────── */
+
+.windows,
+.skip-dates {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 0;
+  list-style: none;
+}
+
+.window {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--surface-sunken);
+  box-shadow: 0 0 0 1px var(--border);
+}
+
+.days {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.day {
+  all: unset;
+  flex: 1;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background: var(--power-off-face);
+  box-shadow: 0 0 0 1px var(--border);
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-semibold);
+  text-align: center;
+  cursor: pointer;
+}
+
+/* Fill and weight, not color alone, say a day is in (NFR-4). */
+.day[aria-pressed="true"] {
+  background: linear-gradient(160deg, var(--power-on-hi), var(--power-on));
+  box-shadow: none;
+  color: var(--on-accent);
+}
+
+.day:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.times {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* Wide enough for a 12-hour clock's AM/PM, which the OS locale may pick. */
+.window-time {
+  flex: 1;
+  min-width: 0;
+  padding: 0 6px;
+  font-size: var(--text-caption);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.as-ibtn.remove {
+  flex: none;
+  width: 32px;
+  height: 32px;
+}
+
+.add.as-btn {
+  align-self: flex-start;
+  height: 32px;
+  margin-top: var(--space-2);
+  padding: 0 var(--space-2);
+  color: var(--focus);
+  font-size: var(--text-caption);
+}
+
+.schedule-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.schedule-body .field {
+  margin-top: var(--space-3);
+}
+
+.skip-date {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.skip-form {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.skip-form .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.skip-form .as-btn {
+  height: 32px;
+}
+
+.empty {
+  padding: var(--space-1) 0;
+}

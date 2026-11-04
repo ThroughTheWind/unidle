@@ -6,7 +6,7 @@
 The board. One row per live work item, grouped by status. Items live in
 [`items/`](items/); finished work moves to [`archive/`](archive/).
 
-<!-- NEXT-ID: WI-011 -->
+<!-- NEXT-ID: WI-012 -->
 <!-- Claim from this marker and bump it on your own branch. `node .ai/rungs.mjs check` refuses a duplicate. -->
 
 ## In progress
@@ -28,6 +28,7 @@ The board. One row per live work item, grouped by status. Items live in
 | [WI-008](items/WI-008-app-icon.md) | Redesign the app and tray icons, with a Wake eye default and an App icon setting | feature | `feature/WI-008-app-icon` |
 | [WI-009](items/WI-009-scheduling-core.md) | Decide ON/OFF between manual, timers and a weekly schedule in the core | feature | `feature/WI-009-scheduling-core` |
 | [WI-010](items/WI-010-timers-and-source.md) | Add quick timers and the source line to the tray and window | feature | `feature/WI-010-timers-and-source` |
+| [WI-011](items/WI-011-schedule-editor.md) | Edit the weekly schedule and days off in Settings | feature | `feature/WI-011-schedule-editor` |
 
 ## Planned
 
