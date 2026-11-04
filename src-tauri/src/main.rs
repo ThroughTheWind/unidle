@@ -11,12 +11,13 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 use std::time::Duration;
 
+use jiff::{SignedDuration, Timestamp, Zoned};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, RunEvent, State, WindowEvent};
 use tauri_plugin_global_shortcut::ShortcutState;
 use tauri_plugin_notification::NotificationExt as _;
 use unidle_core::{
-    Controller, InputUnavailable, NudgeKey, Settings, Status, SystemAdapter, Ticker,
+    Controller, InputUnavailable, NudgeKey, Settings, Source, Status, SystemAdapter, Ticker,
 };
 
 /// Emitted to the window whenever the state changes outside it, such as
@@ -33,6 +34,8 @@ struct App {
     /// Set by an explicit quit, so the app exits instead of staying in the tray.
     quitting: AtomicBool,
     settings: Mutex<Settings>,
+    /// The tray asked for the timer picker; the window takes it once loaded.
+    timer_picker_requested: AtomicBool,
 }
 
 impl App {
@@ -61,6 +64,19 @@ struct StatusDto {
     nudging: bool,
     /// Why nudges cannot be sent, if they cannot (SPEC PB-2).
     input_unavailable: Option<&'static str>,
+    /// `"manual"`, `"timer"` or `"schedule"` while ON (SPEC SC-4).
+    source: Option<&'static str>,
+    next_change: Option<NextChangeDto>,
+    /// Milliseconds since the Unix epoch, while a manual OFF pauses a window.
+    paused_until: Option<i64>,
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NextChangeDto {
+    /// Milliseconds since the Unix epoch, for `new Date()`.
+    at: i64,
+    on: bool,
 }
 
 impl From<Status> for StatusDto {
@@ -79,6 +95,16 @@ impl From<Status> for StatusDto {
                     InputUnavailable::NoDisplay => "noDisplay",
                     InputUnavailable::Unsupported => "unsupported",
                 }),
+            source: status.source.map(|source| match source {
+                Source::Manual => "manual",
+                Source::Timer => "timer",
+                Source::Schedule => "schedule",
+            }),
+            next_change: status.next_change.map(|change| NextChangeDto {
+                at: change.at.as_millisecond(),
+                on: change.on,
+            }),
+            paused_until: status.paused_until.map(Timestamp::as_millisecond),
         }
     }
 }
@@ -145,6 +171,41 @@ fn on_automatic_change(app: &AppHandle) {
     notify(app, &status);
 }
 
+/// How long a quick timer runs (SPEC SC-3).
+pub(crate) enum TimerLength {
+    Minutes(u32),
+    /// Minutes since local midnight: the next time the clock shows it.
+    Until(u16),
+}
+
+/// The longest timer: a day. Longer is a schedule.
+const MAX_TIMER_MINUTES: u32 = 24 * 60;
+
+/// Keeps simulation ON until the timer ends, then the schedule decides.
+pub(crate) fn start_timer(app: &AppHandle, length: TimerLength) -> Result<Status, String> {
+    let now = Zoned::now();
+    let until = match length {
+        TimerLength::Minutes(minutes) if (1..=MAX_TIMER_MINUTES).contains(&minutes) => {
+            now.timestamp() + SignedDuration::from_mins(i64::from(minutes))
+        }
+        TimerLength::Minutes(_) => return Err("A timer runs for 1 minute to 24 hours".into()),
+        TimerLength::Until(minutes) => unidle_core::next_local_time(&now, minutes)
+            .ok_or_else(|| "That time doesn't exist here".to_string())?,
+    };
+    let state = app.state::<App>();
+    let (result, status) = {
+        let mut controller = state.controller();
+        let result = controller.start_timer_at(until, &now);
+        (result, controller.status())
+    };
+    state.ticker.wake();
+    tray::refresh(app, &status);
+    let _ = app.emit(STATUS_EVENT, StatusDto::from(status));
+    result.map_err(|error| error.to_string())?;
+    notify(app, &status);
+    Ok(status)
+}
+
 pub(crate) fn toggle(app: &AppHandle) {
     let on = app.state::<App>().controller().status().is_on();
     let _ = set_active(app, !on);
@@ -166,6 +227,31 @@ fn get_status(app: State<'_, App>) -> StatusDto {
 #[tauri::command(rename = "set_active")]
 fn set_active_command(on: bool, app: AppHandle) -> Result<StatusDto, String> {
     set_active(&app, on).map(StatusDto::from)
+}
+
+/// `minutes` for "ON for 30 min", or `until` ("18:00") for "until 18:00".
+#[tauri::command(rename = "start_timer")]
+fn start_timer_command(
+    minutes: Option<u32>,
+    until: Option<String>,
+    app: AppHandle,
+) -> Result<StatusDto, String> {
+    let length = match (minutes, until) {
+        (Some(minutes), None) => TimerLength::Minutes(minutes),
+        (None, Some(until)) => TimerLength::Until(
+            unidle_core::parse_time(&until)
+                .filter(|minutes| *minutes < unidle_core::MINUTES_PER_DAY)
+                .ok_or_else(|| format!("Not a time: {until}"))?,
+        ),
+        _ => return Err("Give minutes or a time".into()),
+    };
+    start_timer(&app, length).map(StatusDto::from)
+}
+
+/// Whether the tray asked for the timer picker since the last call.
+#[tauri::command]
+fn take_timer_picker_request(app: State<'_, App>) -> bool {
+    app.timer_picker_requested.swap(false, Ordering::SeqCst)
 }
 
 #[tauri::command]
@@ -291,7 +377,7 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         window::show(&handle);
     }
 
-    // Keeps the tray's "ON for …" line current while ON.
+    // Keeps the tray's "ON for …" and next change lines current.
     let refresher = handle.clone();
     std::thread::Builder::new()
         .name("unidle-tray-refresh".into())
@@ -299,7 +385,8 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
             loop {
                 std::thread::sleep(TRAY_REFRESH);
                 let status = refresher.state::<App>().controller().status();
-                if status.is_on() {
+                // "tomorrow at 09:00" turns into "at 09:00" at midnight.
+                if status.is_on() || status.next_change.is_some() {
                     tray::refresh(&refresher, &status);
                 }
             }
@@ -345,6 +432,7 @@ fn main() {
             ticker,
             quitting: AtomicBool::new(false),
             settings: Mutex::new(Settings::default()),
+            timer_picker_requested: AtomicBool::new(false),
         })
         .setup(move |app| {
             let _ = handle.set(app.handle().clone());
@@ -358,6 +446,8 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             get_status,
             set_active_command,
+            start_timer_command,
+            take_timer_picker_request,
             get_settings,
             update_settings,
             nudge_keys,

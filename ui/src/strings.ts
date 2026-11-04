@@ -25,6 +25,33 @@ export const strings = {
   inputUnavailable: "Input simulation unavailable: keeping the system awake only.",
   openAccessibility: "Open Accessibility settings",
 
+  // Quick timers and the source line (SPEC SC-3, SC-4).
+  keepAwakeFor: "Keep awake for",
+  timers: [
+    { minutes: 15, label: "15 min", name: "15 minutes" },
+    { minutes: 30, label: "30 min", name: "30 minutes" },
+    { minutes: 60, label: "1 h", name: "1 hour" },
+    { minutes: 120, label: "2 h", name: "2 hours" },
+  ],
+  timerUntil: "Until…",
+  timerUntilName: "Until a time",
+  untilLabel: "Until",
+  untilStart: "Start",
+  untilCancel: "Cancel",
+  timerFailed: "Couldn't start the timer",
+  sources: {
+    manual: "Manual",
+    timer: "Timer",
+    schedule: "Scheduled",
+  },
+  /** "OFF at 18:00", "ON tomorrow at 09:00", "ON Mon at 09:00", "ON Nov 16 at 09:00". */
+  nextChange: (on: boolean, when: string) => `${on ? "ON" : "OFF"} ${when}`,
+  today: (time: string) => `at ${time}`,
+  tomorrow: (time: string) => `tomorrow at ${time}`,
+  onDay: (day: string, time: string) => `${day} at ${time}`,
+  paused: (until: string) => `Schedule paused until ${until}`,
+  tomorrowShort: (time: string) => `tomorrow ${time}`,
+
   // Settings
   appearance: "Appearance",
   buttonStyle: "Button style",

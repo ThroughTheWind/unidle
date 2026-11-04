@@ -1,7 +1,11 @@
-//! The tray / menu bar icon and its menu (SPEC FR-2, FR-4, FR-5, FR-13).
+//! The tray / menu bar icon and its menu (SPEC FR-2, FR-4, FR-5, FR-13), with
+//! the quick timers and the source line (SPEC SC-3, SC-4).
 
+use std::sync::Mutex;
+
+use jiff::Zoned;
 use tauri::image::Image;
-use tauri::menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem};
+use tauri::menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Manager, Wry};
 use unidle_core::Status;
@@ -12,6 +16,9 @@ const TRAY_ID: &str = "main";
 const MENU_TOGGLE: &str = "toggle";
 const MENU_OPEN: &str = "open";
 const MENU_QUIT: &str = "quit";
+/// Followed by the number of minutes.
+const MENU_TIMER: &str = "timer-";
+const MENU_TIMER_UNTIL: &str = "timer-until";
 
 /// Shape, not only color, tells ON from OFF (SPEC FR-4): OFF is an outlined
 /// button, ON a filled one. Each app icon (app_icon.rs) has its own pair:
@@ -53,13 +60,32 @@ fn icon(app: &AppHandle, on: bool) -> &'static [u8] {
 
 /// Menu items whose text follows the state.
 pub struct TrayMenu {
+    menu: Menu<Wry>,
     status: MenuItem<Wry>,
+    /// The source and next change, under the status. Only in the menu while
+    /// there is something to say, so the menu never shows a blank line.
+    detail: MenuItem<Wry>,
+    detail_shown: Mutex<bool>,
     toggle: MenuItem<Wry>,
 }
 
 pub fn create(app: &AppHandle) -> tauri::Result<TrayMenu> {
     let status = MenuItem::new(app, strings::STATUS_OFF, false, None::<&str>)?;
+    let detail = MenuItem::new(app, "", false, None::<&str>)?;
     let toggle = MenuItem::with_id(app, MENU_TOGGLE, strings::TURN_ON, true, None::<&str>)?;
+    let timers = Submenu::new(app, strings::KEEP_AWAKE_FOR, true)?;
+    for (minutes, label) in strings::TIMERS {
+        let id = format!("{MENU_TIMER}{minutes}");
+        timers.append(&MenuItem::with_id(app, id, label, true, None::<&str>)?)?;
+    }
+    timers.append(&PredefinedMenuItem::separator(app)?)?;
+    timers.append(&MenuItem::with_id(
+        app,
+        MENU_TIMER_UNTIL,
+        strings::TIMER_UNTIL,
+        true,
+        None::<&str>,
+    )?)?;
     let open = MenuItem::with_id(app, MENU_OPEN, strings::OPEN_WINDOW, true, None::<&str>)?;
     let quit = MenuItem::with_id(app, MENU_QUIT, strings::QUIT, true, None::<&str>)?;
     let menu = Menu::with_items(
@@ -68,6 +94,7 @@ pub fn create(app: &AppHandle) -> tauri::Result<TrayMenu> {
             &status,
             &PredefinedMenuItem::separator(app)?,
             &toggle,
+            &timers,
             &open,
             &PredefinedMenuItem::separator(app)?,
             &quit,
@@ -87,7 +114,13 @@ pub fn create(app: &AppHandle) -> tauri::Result<TrayMenu> {
         .on_tray_icon_event(on_tray_event)
         .build(app)?;
 
-    Ok(TrayMenu { status, toggle })
+    Ok(TrayMenu {
+        menu,
+        status,
+        detail,
+        detail_shown: Mutex::new(false),
+        toggle,
+    })
 }
 
 /// Brings the icon, tooltip and menu in line with the controller.
@@ -113,6 +146,24 @@ pub fn refresh(app: &AppHandle, status: &Status) {
         } else {
             strings::TURN_ON
         });
+        let detail = strings::detail(status, &Zoned::now());
+        let mut shown = menu
+            .detail_shown
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        match detail {
+            Some(text) => {
+                let _ = menu.detail.set_text(text);
+                if !*shown && menu.menu.insert(&menu.detail, 1).is_ok() {
+                    *shown = true;
+                }
+            }
+            None => {
+                if *shown && menu.menu.remove(&menu.detail).is_ok() {
+                    *shown = false;
+                }
+            }
+        }
     }
 }
 
@@ -121,7 +172,15 @@ fn on_menu_event(app: &AppHandle, event: MenuEvent) {
         MENU_TOGGLE => crate::toggle(app),
         MENU_OPEN => crate::window::show(app),
         MENU_QUIT => crate::quit(app),
-        _ => {}
+        MENU_TIMER_UNTIL => crate::window::show_timer_picker(app),
+        id => {
+            if let Some(minutes) = id
+                .strip_prefix(MENU_TIMER)
+                .and_then(|minutes| minutes.parse().ok())
+            {
+                let _ = crate::start_timer(app, crate::TimerLength::Minutes(minutes));
+            }
+        }
     }
 }
 

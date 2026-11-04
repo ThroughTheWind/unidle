@@ -122,6 +122,17 @@ fn local(date: Date, minutes: u16, tz: &TimeZone) -> Option<Timestamp> {
         .map(|zoned| zoned.timestamp())
 }
 
+/// The next time the clock shows `minutes` after `now`: today, or tomorrow if
+/// that time has passed. For "until 18:00" timers (SPEC SC-3).
+pub fn next_local_time(now: &jiff::Zoned, minutes: u16) -> Option<Timestamp> {
+    let tz = now.time_zone();
+    let today = local(now.date(), minutes, tz)?;
+    if today > now.timestamp() {
+        return Some(today);
+    }
+    local(now.date().tomorrow().ok()?, minutes, tz)
+}
+
 /// When the app turns itself on, every week.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Schedule {
@@ -232,6 +243,14 @@ pub(crate) mod tests {
         }
         assert_eq!(format_time(570), "09:30");
         assert_eq!(format_time(1440), "24:00");
+    }
+
+    #[test]
+    fn until_a_time_means_the_next_time_the_clock_shows_it() {
+        let now = at("2026-11-02T17:00").to_zoned(paris());
+        assert_eq!(next_local_time(&now, 18 * 60), Some(at("2026-11-02T18:00")));
+        assert_eq!(next_local_time(&now, 9 * 60), Some(at("2026-11-03T09:00")));
+        assert_eq!(next_local_time(&now, 17 * 60), Some(at("2026-11-03T17:00")));
     }
 
     #[test]
