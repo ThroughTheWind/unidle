@@ -102,6 +102,7 @@ h3{font-size:17px;letter-spacing:-.01em;font-weight:600;margin:0}
   .hero{padding:56px 0 72px}
   .hero-in{grid-template-columns:1fr;gap:48px}
   .features,.downloads{grid-template-columns:1fr 1fr}
+  .features article:last-child:nth-child(odd){grid-column:1/-1}
 }
 @media (max-width:640px){
   .wrap{padding:0 16px}
