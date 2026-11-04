@@ -14,7 +14,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use unidle_core::{
-    Controller, EventKind, Input, NudgeConfig, NudgeKind, NudgeMethod, PlatformAdapter, Source,
+    Controller, EventKind, Input, NudgeConfig, NudgeKind, NudgeMethod, PlatformAdapter,
     SystemAdapter, Ticker, request_input_permission,
 };
 
@@ -76,8 +76,8 @@ fn run(method: NudgeMethod, interval: u64, minutes: u64) {
         SystemAdapter::default(),
         config,
     )));
-    controller.lock().unwrap().turn_on(Source::Manual).unwrap();
-    let ticker = Ticker::spawn(controller.clone());
+    controller.lock().unwrap().turn_on().unwrap();
+    let ticker = Ticker::spawn(controller.clone(), || {});
     ticker.wake();
     println!(
         "ON: {method:?} every {:?} ±20% for {minutes} min",

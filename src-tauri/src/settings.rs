@@ -54,9 +54,18 @@ pub fn apply_to_controller(app: &AppHandle, settings: &Settings) -> Result<(), S
         controller.set_nudge_config(settings.nudge_config());
         let adapter = controller.adapter_mut();
         adapter.set_nudge_key(settings.nudge_key);
-        adapter
+        let power = adapter
             .set_power_options(settings.power_options())
-            .map_err(|error| error.to_string())
+            .map_err(|error| error.to_string());
+        let schedule = if *controller.schedule() == settings.schedule() {
+            Ok(())
+        } else {
+            // Entering or leaving a window turns ON or OFF at once.
+            controller
+                .set_schedule(settings.schedule())
+                .map_err(|error| format!("The schedule could not turn activity on: {error}"))
+        };
+        power.and(schedule)
     };
     state.ticker.wake();
     result

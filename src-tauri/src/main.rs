@@ -8,7 +8,7 @@ mod tray;
 mod window;
 
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 use std::time::Duration;
 
 use serde::Serialize;
@@ -16,7 +16,7 @@ use tauri::{AppHandle, Emitter, Manager, RunEvent, State, WindowEvent};
 use tauri_plugin_global_shortcut::ShortcutState;
 use tauri_plugin_notification::NotificationExt as _;
 use unidle_core::{
-    Controller, InputUnavailable, NudgeKey, Settings, Source, Status, SystemAdapter, Ticker,
+    Controller, InputUnavailable, NudgeKey, Settings, Status, SystemAdapter, Ticker,
 };
 
 /// Emitted to the window whenever the state changes outside it, such as
@@ -90,7 +90,7 @@ fn set_active(app: &AppHandle, on: bool) -> Result<Status, String> {
         let mut controller = state.controller();
         let result = if on {
             let wants_nudges = controller.nudge_config().enabled;
-            let result = controller.turn_on(Source::Manual);
+            let result = controller.turn_on();
             // macOS lists the app under Accessibility only once it asks, so
             // ask the first time nudges are wanted and the permission is
             // missing.
@@ -112,23 +112,37 @@ fn set_active(app: &AppHandle, on: bool) -> Result<Status, String> {
     let _ = app.emit(STATUS_EVENT, StatusDto::from(status));
     result.map_err(|error| error.to_string())?;
 
-    let notify = state.settings().notify_on_change;
     if state.settings().last_state_on != status.is_on() {
         settings::record(app, |settings| settings.last_state_on = status.is_on());
     }
-    // Optional, off by default (SPEC FR-16).
-    if notify {
-        let _ = app
-            .notification()
-            .builder()
-            .title(if status.is_on() {
-                strings::TOOLTIP_ON
-            } else {
-                strings::TOOLTIP_OFF
-            })
-            .show();
-    }
+    notify(app, &status);
     Ok(status)
+}
+
+/// The optional notification on each state change, off by default (SPEC
+/// FR-16).
+fn notify(app: &AppHandle, status: &Status) {
+    if !app.state::<App>().settings().notify_on_change {
+        return;
+    }
+    let _ = app
+        .notification()
+        .builder()
+        .title(if status.is_on() {
+            strings::TOOLTIP_ON
+        } else {
+            strings::TOOLTIP_OFF
+        })
+        .show();
+}
+
+/// A timer or the schedule changed the state on its own: every surface
+/// catches up.
+fn on_automatic_change(app: &AppHandle) {
+    let status = app.state::<App>().controller().status();
+    tray::refresh(app, &status);
+    let _ = app.emit(STATUS_EVENT, StatusDto::from(status));
+    notify(app, &status);
 }
 
 pub(crate) fn toggle(app: &AppHandle) {
@@ -295,7 +309,15 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 
 fn main() {
     let controller = Arc::new(Mutex::new(Controller::new(SystemAdapter::default())));
-    let ticker = Ticker::spawn(controller.clone());
+    // The ticker starts before the app exists; it reaches the app once setup
+    // has run.
+    let handle: Arc<OnceLock<AppHandle>> = Arc::default();
+    let ticker_handle = handle.clone();
+    let ticker = Ticker::spawn(controller.clone(), move || {
+        if let Some(app) = ticker_handle.get() {
+            on_automatic_change(app);
+        }
+    });
 
     tauri::Builder::default()
         // First, so a second launch exits before it builds a second tray. It
@@ -324,7 +346,10 @@ fn main() {
             quitting: AtomicBool::new(false),
             settings: Mutex::new(Settings::default()),
         })
-        .setup(setup)
+        .setup(move |app| {
+            let _ = handle.set(app.handle().clone());
+            setup(app)
+        })
         .on_window_event(|window, event| {
             if window.label() == window::MAIN && matches!(event, WindowEvent::Destroyed) {
                 window::on_closed(window.app_handle());
