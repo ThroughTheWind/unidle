@@ -12,6 +12,7 @@ This project follows [Semantic Versioning](https://semver.org).
 - Quick timers: keep the computer awake for 15 minutes, 30 minutes, 1 hour, 2 hours or until a time, from the tray's "Keep awake for" menu or the row under the button. When the timer ends, it turns off, or the schedule takes over.
 - The tray and window say why the app is on and what happens next: "Timer · OFF at 18:00", "Scheduled · ON tomorrow at 09:00", "Schedule paused until 18:00".
 - A "Show timers on the main screen" setting, under Appearance. The tray menu always has the timers.
+- A "Click the tray icon to turn on or off" setting. It's on by default on Windows and Linux, and off on macOS, where a click opens the menu unless you turn it on.
 
 ### Changed
 

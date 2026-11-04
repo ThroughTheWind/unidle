@@ -46,6 +46,7 @@ interface Settings extends ScheduleSettings {
   theme: Theme;
   appIcon: AppIcon;
   showTimers: boolean;
+  trayClickToggles: boolean;
 }
 
 /** Mirrors `APP_ICONS` in crates/core/src/settings.rs. The first is the default. */
@@ -299,6 +300,7 @@ const launchAtLogin = element<HTMLInputElement>("launch-at-login");
 const restoreLastState = element<HTMLInputElement>("restore-last-state");
 const notifyOnChange = element<HTMLInputElement>("notify-on-change");
 const showTimers = element<HTMLInputElement>("show-timers");
+const trayClickToggles = element<HTMLInputElement>("tray-click-toggles");
 const shortcutRecord = element<HTMLButtonElement>("shortcut-record");
 const shortcutClear = element<HTMLButtonElement>("shortcut-clear");
 const settingsError = element("settings-error");
@@ -428,6 +430,7 @@ function renderSettings(): void {
   launchAtLogin.checked = settings.launchAtLogin;
   restoreLastState.checked = settings.restoreLastState;
   notifyOnChange.checked = settings.notifyOnChange;
+  trayClickToggles.checked = settings.trayClickToggles;
 
   for (const row of settingsView.querySelectorAll<HTMLElement>("[data-needs-nudge]")) {
     const keyRow = row.hasAttribute("data-needs-key");
@@ -500,6 +503,7 @@ onToggle(keepDisplayOn, "keepDisplayOn");
 onToggle(launchAtLogin, "launchAtLogin");
 onToggle(restoreLastState, "restoreLastState");
 onToggle(notifyOnChange, "notifyOnChange");
+onToggle(trayClickToggles, "trayClickToggles");
 
 nudgeKey.addEventListener("change", () => void update({ nudgeKey: nudgeKey.value }));
 
@@ -601,6 +605,8 @@ text("l-display", strings.keepDisplayOn);
 text("l-login", strings.launchAtLogin);
 text("l-restore", strings.restoreLastState);
 text("l-notify", strings.notifyOnChange);
+text("l-tray-click", strings.trayClickToggles);
+text("d-tray-click", strings.trayClickTogglesHint);
 text("l-shortcut", strings.shortcut);
 text("d-shortcut", strings.shortcutHint);
 shortcutClear.textContent = strings.shortcutClear;

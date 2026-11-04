@@ -57,7 +57,7 @@ v1 is intentionally minimal: one toggle, sensible defaults, no account, no netwo
 ### 5.1 ON/OFF control
 - **FR-1** The app exposes one primary control: a toggle labelled with the current state ("Activity: ON" / "Activity: OFF").
 - **FR-2** The toggle is reachable from:
-  - the tray / menu bar icon (left-click toggles on Windows/Linux; menu item on macOS),
+  - the tray / menu bar icon: left-click toggles, by a setting that is on by default on Windows and Linux and off on macOS, where a click opens the menu,
   - the tray menu ("Turn ON" / "Turn OFF"),
   - the main window's large toggle button,
   - an optional global keyboard shortcut (default unset; configurable in settings).

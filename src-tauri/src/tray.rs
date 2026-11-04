@@ -10,7 +10,7 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, Tray
 use tauri::{AppHandle, Manager, Wry};
 use unidle_core::Status;
 
-use crate::strings;
+use crate::{App, strings};
 
 const TRAY_ID: &str = "main";
 const MENU_TOGGLE: &str = "toggle";
@@ -106,10 +106,9 @@ pub fn create(app: &AppHandle) -> tauri::Result<TrayMenu> {
         .icon_as_template(icons::TEMPLATE)
         .tooltip(strings::TOOLTIP_OFF)
         .menu(&menu)
-        // Left-click toggles on Windows and Linux; macOS opens the menu, as
-        // menu bar items do there (SPEC FR-2). Most Linux trays never report
-        // clicks, so the menu is the way to toggle there.
-        .show_menu_on_left_click(cfg!(target_os = "macos"))
+        // Left-click follows the setting (SPEC FR-2). Most Linux trays never
+        // report clicks, so the menu is the way to toggle there.
+        .show_menu_on_left_click(!click_toggles(app))
         .on_menu_event(on_menu_event)
         .on_tray_icon_event(on_tray_event)
         .build(app)?;
@@ -121,6 +120,17 @@ pub fn create(app: &AppHandle) -> tauri::Result<TrayMenu> {
         detail_shown: Mutex::new(false),
         toggle,
     })
+}
+
+fn click_toggles(app: &AppHandle) -> bool {
+    app.state::<App>().settings().tray_click_toggles
+}
+
+/// Applies the tray click setting after it changes.
+pub fn apply_click_setting(app: &AppHandle) {
+    if let Some(tray) = app.tray_by_id(TRAY_ID) {
+        let _ = tray.set_show_menu_on_left_click(!click_toggles(app));
+    }
 }
 
 /// Brings the icon, tooltip and menu in line with the controller.
@@ -185,7 +195,7 @@ fn on_menu_event(app: &AppHandle, event: MenuEvent) {
 }
 
 fn on_tray_event(tray: &TrayIcon, event: TrayIconEvent) {
-    if cfg!(target_os = "macos") {
+    if !click_toggles(tray.app_handle()) {
         return;
     }
     if let TrayIconEvent::Click {

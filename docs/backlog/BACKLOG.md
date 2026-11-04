@@ -6,7 +6,7 @@
 The board. One row per live work item, grouped by status. Items live in
 [`items/`](items/); finished work moves to [`archive/`](archive/).
 
-<!-- NEXT-ID: WI-014 -->
+<!-- NEXT-ID: WI-015 -->
 <!-- Claim from this marker and bump it on your own branch. `node .ai/rungs.mjs check` refuses a duplicate. -->
 
 ## In progress
@@ -31,6 +31,7 @@ The board. One row per live work item, grouped by status. Items live in
 | [WI-011](items/WI-011-schedule-editor.md) | Edit the weekly schedule and days off in Settings | feature | `feature/WI-011-schedule-editor` |
 | [WI-012](items/WI-012-schedule-import-export.md) | Import and export the schedule as a file | feature | `feature/WI-012-schedule-import-export` |
 | [WI-013](items/WI-013-window-controls.md) | Tidy the main screen and restyle the window's controls | feature | `claude/project-thread-uw5zsp` |
+| [WI-014](items/WI-014-tray-click-setting.md) | Make turning on or off from a tray icon click a setting | feature | `claude/project-thread-uw5zsp` |
 
 ## Planned
 

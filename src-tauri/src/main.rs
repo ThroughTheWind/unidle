@@ -312,6 +312,7 @@ fn get_settings(app: State<'_, App>) -> Settings {
 fn update_settings(patch: serde_json::Value, app: AppHandle) -> Result<Settings, String> {
     let settings = settings::update(&app, patch)?;
     app_icon::apply(&app);
+    tray::apply_click_setting(&app);
     let status = app.state::<App>().controller().status();
     tray::refresh(&app, &status);
     let _ = app.emit(STATUS_EVENT, StatusDto::from(status));

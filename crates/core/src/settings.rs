@@ -64,6 +64,10 @@ pub struct Settings {
     pub app_icon: String,
     /// The quick timers under the button. The tray menu always has them.
     pub show_timers: bool,
+    /// A left-click on the tray icon turns ON or OFF instead of opening the
+    /// menu. The default follows each OS's habit: macOS menu bar items open
+    /// their menu.
+    pub tray_click_toggles: bool,
     /// Turn ON and OFF on the weekly schedule (ROADMAP Phase 2).
     pub schedule_enabled: bool,
     /// `{"days": ["mon", …], "start": "09:00", "end": "18:00"}` each.
@@ -92,6 +96,7 @@ impl Default for Settings {
             theme: THEMES[0].to_string(),
             app_icon: APP_ICONS[0].to_string(),
             show_timers: true,
+            tray_click_toggles: !cfg!(target_os = "macos"),
             schedule_enabled: false,
             schedule_windows: Vec::new(),
             skip_dates: Vec::new(),
@@ -166,6 +171,7 @@ impl Settings {
                 APP_ICONS.contains(&icon).then(|| icon.to_string())
             }),
             show_timers: read.bool("showTimers", defaults.show_timers),
+            tray_click_toggles: read.bool("trayClickToggles", defaults.tray_click_toggles),
             schedule_enabled: read.bool("scheduleEnabled", defaults.schedule_enabled),
             schedule_windows: read.parse("scheduleWindows", Vec::new(), |value| {
                 let windows = value.as_array()?;
@@ -356,6 +362,7 @@ mod tests {
             theme: "dark".into(),
             app_icon: "power".into(),
             show_timers: false,
+            tray_click_toggles: cfg!(target_os = "macos"),
             schedule_enabled: true,
             schedule_windows: vec![
                 TimeWindow::new(Weekdays::WORKDAYS, 9 * 60, 18 * 60).unwrap(),
@@ -394,6 +401,7 @@ mod tests {
                 "theme": "sepia",
                 "appIcon": "cat",
                 "showTimers": "yes",
+                "trayClickToggles": 1,
                 "scheduleWindows": [{"days": ["mon"], "start": "09:00", "end": "25:00"}],
                 "skipDates": ["2026-02-30"]
             }"#,
@@ -417,6 +425,7 @@ mod tests {
                 "theme",
                 "appIcon",
                 "showTimers",
+                "trayClickToggles",
                 "scheduleWindows",
                 "skipDates"
             ]
@@ -467,6 +476,7 @@ mod tests {
         assert_eq!(settings.theme, "system");
         assert_eq!(settings.app_icon, "eye");
         assert!(settings.show_timers);
+        assert_eq!(settings.tray_click_toggles, !cfg!(target_os = "macos"));
         assert!(!settings.schedule_enabled);
         assert!(settings.schedule_windows.is_empty());
     }

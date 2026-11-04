@@ -127,6 +127,8 @@ export const strings = {
   launchAtLogin: "Launch at login",
   restoreLastState: "Restore the last state at launch",
   notifyOnChange: "Notify when it turns on or off",
+  trayClickToggles: "Click the tray icon to turn on or off",
+  trayClickTogglesHint: "Otherwise a click opens the menu. Most Linux desktops always open it.",
   shortcut: "Global shortcut",
   shortcutHint: "Turns it on or off from anywhere",
   shortcutNone: "Record",
