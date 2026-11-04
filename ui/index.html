@@ -17,6 +17,7 @@
             </svg>
           </span>
         </button>
+        <!-- Empty on the main screen: the button is the window (design system). -->
         <h1 id="title" class="bar-title"></h1>
         <!-- Both open a page in the browser; the app makes no network request (SPEC NFR-2). -->
         <button id="check-updates" class="as-ibtn" type="button">
@@ -53,19 +54,25 @@
         <div class="ub-stage">
           <button id="power" class="ub-power" type="button" role="switch" aria-checked="false"></button>
         </div>
-        <div class="ub-meta">
-          <span id="state" class="ub-state"></span>
-          <span id="timer" class="ub-timer"></span>
+        <!-- Fixed height whatever it shows, so the button never moves. -->
+        <div class="under">
+          <div class="ub-meta">
+            <span id="state" class="ub-state"></span>
+            <span id="timer" class="ub-timer"></span>
+          </div>
+          <!-- One line at a time: what needs attention, else who turned it on
+               and the next change (SPEC SC-4). -->
+          <div class="message-slot">
+            <p id="detail" class="as-status detail-line" hidden>
+              <span class="dot"></span>
+              <span id="detail-text"></span>
+            </p>
+            <p id="status" class="as-status status-line" role="status" hidden>
+              <span class="dot"></span>
+              <span id="status-text"></span>
+            </p>
+          </div>
         </div>
-        <!-- Who turned it on, and the next change (SPEC SC-4). -->
-        <p id="detail" class="as-status detail-line" hidden>
-          <span class="dot"></span>
-          <span id="detail-text"></span>
-        </p>
-        <p id="status" class="as-status status-line" role="status" hidden>
-          <span class="dot"></span>
-          <span id="status-text"></span>
-        </p>
         <button id="status-action" class="as-btn ghost status-action" type="button" hidden></button>
         <!-- Quick timers (SPEC SC-3). -->
         <div id="timers" class="timers" role="group"></div>
@@ -89,6 +96,13 @@
               <span id="l-theme" class="field-label"></span>
               <div id="theme-picker" class="as-seg seg" role="radiogroup" aria-labelledby="l-theme"></div>
             </div>
+            <label class="row">
+              <span class="row-text">
+                <span id="l-show-timers" class="row-label"></span>
+                <span id="d-show-timers" class="row-hint"></span>
+              </span>
+              <input id="show-timers" class="switch" type="checkbox" role="switch" />
+            </label>
             <div class="field">
               <span id="l-icon" class="field-label"></span>
               <div id="icon-picker" class="as-seg seg" role="radiogroup" aria-labelledby="l-icon" aria-describedby="d-icon"></div>
@@ -111,7 +125,9 @@
             </div>
             <label class="row" data-needs-nudge data-needs-key>
               <span id="l-key" class="row-label"></span>
-              <select id="nudge-key" class="input"></select>
+              <span class="select">
+                <select id="nudge-key" class="input"></select>
+              </span>
             </label>
             <label class="row" data-needs-nudge>
               <span class="row-text">
@@ -175,6 +191,13 @@
             <label class="row">
               <span id="l-restore" class="row-label"></span>
               <input id="restore-last-state" class="switch" type="checkbox" role="switch" />
+            </label>
+            <label class="row">
+              <span class="row-text">
+                <span id="l-tray-click" class="row-label"></span>
+                <span id="d-tray-click" class="row-hint"></span>
+              </span>
+              <input id="tray-click-toggles" class="switch" type="checkbox" role="switch" />
             </label>
             <label class="row">
               <span id="l-notify" class="row-label"></span>

@@ -62,6 +62,14 @@ pub struct Settings {
     pub theme: String,
     /// One of [`APP_ICONS`]. Sets the tray, window and Dock icons.
     pub app_icon: String,
+    /// The quick-timer row under the power button. The tray keeps its
+    /// timers either way.
+    pub show_timers: bool,
+    /// A left click on the tray icon turns ON or OFF; the menu opens on a
+    /// right click. Off: a left click opens the menu too. On by default on
+    /// Windows and Linux, off on macOS, where menu bar items open their menu
+    /// (SPEC FR-2).
+    pub tray_click_toggles: bool,
     /// Turn ON and OFF on the weekly schedule (ROADMAP Phase 2).
     pub schedule_enabled: bool,
     /// `{"days": ["mon", …], "start": "09:00", "end": "18:00"}` each.
@@ -89,6 +97,8 @@ impl Default for Settings {
             button_style: BUTTON_STYLES[0].to_string(),
             theme: THEMES[0].to_string(),
             app_icon: APP_ICONS[0].to_string(),
+            show_timers: true,
+            tray_click_toggles: !cfg!(target_os = "macos"),
             schedule_enabled: false,
             schedule_windows: Vec::new(),
             skip_dates: Vec::new(),
@@ -162,6 +172,8 @@ impl Settings {
                 let icon = value.as_str()?;
                 APP_ICONS.contains(&icon).then(|| icon.to_string())
             }),
+            show_timers: read.bool("showTimers", defaults.show_timers),
+            tray_click_toggles: read.bool("trayClickToggles", defaults.tray_click_toggles),
             schedule_enabled: read.bool("scheduleEnabled", defaults.schedule_enabled),
             schedule_windows: read.parse("scheduleWindows", Vec::new(), |value| {
                 let windows = value.as_array()?;
@@ -351,6 +363,8 @@ mod tests {
             button_style: "eye".into(),
             theme: "dark".into(),
             app_icon: "power".into(),
+            show_timers: false,
+            tray_click_toggles: cfg!(target_os = "macos"),
             schedule_enabled: true,
             schedule_windows: vec![
                 TimeWindow::new(Weekdays::WORKDAYS, 9 * 60, 18 * 60).unwrap(),
@@ -459,6 +473,7 @@ mod tests {
         assert_eq!(settings.button_style, "halo");
         assert_eq!(settings.theme, "system");
         assert_eq!(settings.app_icon, "eye");
+        assert!(settings.show_timers);
         assert!(!settings.schedule_enabled);
         assert!(settings.schedule_windows.is_empty());
     }

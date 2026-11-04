@@ -312,6 +312,7 @@ fn get_settings(app: State<'_, App>) -> Settings {
 fn update_settings(patch: serde_json::Value, app: AppHandle) -> Result<Settings, String> {
     let settings = settings::update(&app, patch)?;
     app_icon::apply(&app);
+    tray::apply_click(&app, settings.tray_click_toggles);
     let status = app.state::<App>().controller().status();
     tray::refresh(&app, &status);
     let _ = app.emit(STATUS_EVENT, StatusDto::from(status));
@@ -416,6 +417,7 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     }
     // The tray was built before the settings were read.
     app_icon::apply(&handle);
+    tray::apply_click(&handle, loaded.tray_click_toggles);
     tray::refresh(&handle, &app.state::<App>().controller().status());
     if loaded.start_on() {
         let _ = set_active(&handle, true);
