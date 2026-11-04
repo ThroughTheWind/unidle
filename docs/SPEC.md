@@ -28,7 +28,7 @@ v1 is intentionally minimal: one toggle, sensible defaults, no account, no netwo
 
 ### Non-goals (v1)
 - Scheduling, calendars or time windows (Phase 2, §10; calendars are Phase 4).
-- Typing real text, scripting, macros, or "human-like" behavior profiles. v1 only sends non-printing keystrokes. Richer keystroke simulation is planned for later phases (see [ROADMAP.md](ROADMAP.md)).
+- Typing real text, scripting, macros, or "human-like" behavior profiles. Unidle only sends non-printing keystrokes, in every version: the richer keyboard simulation once planned as Phase 3 was dropped (see [ROADMAP.md](ROADMAP.md)).
 - Remote control, multi-device sync, cloud features, accounts.
 - Hiding the app from task managers or system monitors. The app is always visible and honest about running.
 - Mobile platforms.
