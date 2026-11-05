@@ -1,6 +1,7 @@
 //! Simulation core: one controller owns the state machine, and platform
 //! adapters own the OS calls. The UI talks to the controller only (SPEC §11).
 
+pub mod activity;
 mod adapter;
 mod automation;
 mod conditions;
@@ -18,7 +19,7 @@ pub use adapter::{
 };
 pub use automation::NextChange;
 pub use conditions::{Conditions, Hold, Reading};
-pub use controller::{Controller, Event, EventKind, Source, Status};
+pub use controller::{Controller, Event, EventKind, SessionSink, Source, Status};
 pub use nudge::{DEFAULT_INTERVAL, MAX_INTERVAL, MIN_INTERVAL, NudgeConfig, NudgeMethod};
 pub use platform::{
     Environment, Input, PowerAssertion, PowerOptions, PowerSource, normalize_process_name,

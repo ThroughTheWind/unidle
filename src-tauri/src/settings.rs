@@ -74,6 +74,7 @@ pub fn apply_to_controller(app: &AppHandle, settings: &Settings) -> Result<(), S
         };
         power.and(schedule).and(conditions)
     };
+    crate::activity_log::apply(app, settings.activity_log);
     state.ticker.wake();
     result
 }

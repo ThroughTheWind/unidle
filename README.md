@@ -8,6 +8,8 @@ A small, open-source desktop app for Windows, macOS and Linux that keeps your co
 
 When ON, the app asks the OS not to sleep and sends a tiny input event at an interval, with no visible effect, so apps that watch for input see activity too. When OFF, or if the app crashes, your computer behaves normally. It makes no network connections. The full behavior is in the [spec](docs/SPEC.md).
 
+If you turn on Settings → Activity log, it keeps a CSV of when it was ON, why, and how many nudges it sent, on your computer only, to export when you need it ([SPEC §15](docs/SPEC.md#15-phase-4-activity-log)).
+
 **Responsible use:** the app simulates input only on your own machine. You are responsible for following your organization's IT and acceptable-use policies.
 
 ## Command line

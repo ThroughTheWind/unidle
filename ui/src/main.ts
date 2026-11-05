@@ -53,6 +53,7 @@ interface Settings extends ScheduleSettings {
   whileRunning: string[];
   releaseWhenLocked: boolean;
   offAfterSleep: boolean;
+  activityLog: boolean;
 }
 
 /** Mirrors `APP_ICONS` in crates/core/src/settings.rs. The first is the default. */
@@ -316,6 +317,7 @@ const minBattery = element<HTMLSelectElement>("min-battery");
 const whileRunning = element<HTMLInputElement>("while-running");
 const releaseWhenLocked = element<HTMLInputElement>("release-when-locked");
 const offAfterSleep = element<HTMLInputElement>("off-after-sleep");
+const activityLog = element<HTMLInputElement>("activity-log");
 const shortcutRecord = element<HTMLButtonElement>("shortcut-record");
 const shortcutClear = element<HTMLButtonElement>("shortcut-clear");
 const settingsError = element("settings-error");
@@ -450,6 +452,7 @@ function renderSettings(): void {
   if (document.activeElement !== whileRunning) whileRunning.value = settings.whileRunning.join(", ");
   releaseWhenLocked.checked = settings.releaseWhenLocked;
   offAfterSleep.checked = settings.offAfterSleep;
+  activityLog.checked = settings.activityLog;
   renderTimerRow();
 
   for (const row of settingsView.querySelectorAll<HTMLElement>("[data-needs-nudge]")) {
@@ -527,6 +530,48 @@ onToggle(trayClickToggles, "trayClickToggles");
 onToggle(onlyOnAc, "onlyOnAc");
 onToggle(releaseWhenLocked, "releaseWhenLocked");
 onToggle(offAfterSleep, "offAfterSleep");
+onToggle(activityLog, "activityLog");
+
+// The activity log (SPEC §15). The file stays on this computer; the Rust side
+// opens the save dialog.
+text("h-activity-log", strings.activityLogGroup);
+text("l-activity-log", strings.activityLog);
+text("d-activity-log", strings.activityLogHint);
+text("l-activity-file", strings.activityFile);
+text("d-activity-file", strings.activityFileHint);
+const activityExport = element<HTMLButtonElement>("activity-export");
+const activityClear = element<HTMLButtonElement>("activity-clear");
+activityExport.textContent = strings.exportActivity;
+activityClear.textContent = strings.clearActivity;
+activityExport.addEventListener("click", async () => {
+  try {
+    if (await invoke<boolean>("export_activity_log")) confirmOn(activityExport, strings.exported, strings.exportActivity);
+  } catch (error) {
+    showSettingsError(message(error));
+  }
+});
+// Deleting can't be undone, so the first click only asks.
+let clearArmed: ReturnType<typeof setTimeout> | null = null;
+activityClear.addEventListener("click", async () => {
+  if (clearArmed === null) {
+    activityClear.textContent = strings.clearActivityConfirm;
+    clearArmed = setTimeout(() => {
+      clearArmed = null;
+      activityClear.textContent = strings.clearActivity;
+    }, 3000);
+    return;
+  }
+  clearTimeout(clearArmed);
+  clearArmed = null;
+  try {
+    await invoke("clear_activity_log");
+    showSettingsError(null);
+    confirmOn(activityClear, strings.cleared, strings.clearActivity);
+  } catch (error) {
+    activityClear.textContent = strings.clearActivity;
+    showSettingsError(message(error));
+  }
+});
 
 minBattery.add(new Option(strings.minBatteryOff, ""));
 for (const level of strings.minBatteryLevels) minBattery.add(new Option(`${level} %`, String(level)));

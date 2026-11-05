@@ -1,6 +1,7 @@
 // No console window on Windows in release builds.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod activity_log;
 mod app_icon;
 mod cli;
 mod settings;
@@ -540,6 +541,8 @@ fn main() -> std::process::ExitCode {
             take_timer_picker_request,
             export_schedule,
             import_schedule,
+            activity_log::export_activity_log,
+            activity_log::clear_activity_log,
             get_settings,
             update_settings,
             nudge_keys,

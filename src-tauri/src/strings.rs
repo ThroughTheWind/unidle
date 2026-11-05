@@ -32,6 +32,8 @@ pub const TIMERS: [(u32, &str); 4] = [
 pub const TIMER_UNTIL: &str = "Until a time…";
 pub const SCHEDULE_FILE_NAME: &str = "unidle-schedule.json";
 pub const SCHEDULE_FILE_FILTER: &str = "Unidle schedule";
+pub const ACTIVITY_FILE_NAME: &str = "unidle-activity.csv";
+pub const ACTIVITY_FILE_FILTER: &str = "CSV";
 
 /// Wanted ON, held by a condition (SPEC §14).
 pub fn held(hold: Hold) -> &'static str {

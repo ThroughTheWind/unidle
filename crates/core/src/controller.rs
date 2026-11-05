@@ -3,6 +3,7 @@ use std::time::{Duration, Instant};
 
 use jiff::{Timestamp, Zoned};
 
+use crate::activity::Session;
 use crate::adapter::{AdapterError, Capabilities, NudgeKind, PlatformAdapter};
 use crate::automation::{Automation, NextChange};
 use crate::conditions::{Conditions, Hold, Reading};
@@ -119,7 +120,14 @@ pub struct Controller<A: PlatformAdapter> {
     /// The OS's time asleep at the last tick while ON or held.
     asleep_mark: Option<Duration>,
     events: VecDeque<Event>,
+    /// The ON session so far, for the activity log (SPEC §15).
+    session: Option<Session>,
+    /// Gets each session as it ends. None while the log is off.
+    session_sink: Option<SessionSink>,
 }
+
+/// Where finished sessions go: the app appends them to the activity log.
+pub type SessionSink = Box<dyn FnMut(Session) + Send>;
 
 impl<A: PlatformAdapter> Controller<A> {
     /// Starts OFF, whatever the adapter can do.
@@ -138,6 +146,8 @@ impl<A: PlatformAdapter> Controller<A> {
             conditions: Conditions::default(),
             asleep_mark: None,
             events: VecDeque::with_capacity(EVENT_LOG_CAPACITY),
+            session: None,
+            session_sink: None,
         }
     }
 
@@ -224,6 +234,31 @@ impl<A: PlatformAdapter> Controller<A> {
         self.sync(now)
     }
 
+    /// Every session that ends from now on goes to `sink`, including the one
+    /// running now. `None` stops that.
+    pub fn set_session_sink(&mut self, sink: Option<SessionSink>) {
+        self.session_sink = sink;
+    }
+
+    fn open_session(&mut self, source: Source, at: Timestamp) {
+        self.session = Some(Session {
+            start: at,
+            end: at,
+            source,
+            power_only: self.power_only,
+            nudges: 0,
+        });
+    }
+
+    fn close_session(&mut self, at: Timestamp) {
+        if let Some(mut session) = self.session.take() {
+            session.end = at.max(session.start);
+            if let Some(sink) = &mut self.session_sink {
+                sink(session);
+            }
+        }
+    }
+
     pub fn conditions(&self) -> &Conditions {
         &self.conditions
     }
@@ -288,6 +323,7 @@ impl<A: PlatformAdapter> Controller<A> {
                 self.state = State::Held { hold };
                 self.planner.stop();
                 self.log(Instant::now(), EventKind::Held(hold));
+                self.close_session(at);
                 self.adapter.release()?;
             }
             (State::Off | State::Held { .. }, Some(source), None) => {
@@ -299,8 +335,13 @@ impl<A: PlatformAdapter> Controller<A> {
                 };
                 self.planner.start(started);
                 self.log(started, EventKind::TurnedOn(source));
+                self.open_session(source, at);
             }
             (State::On { source, since }, Some(wanted), None) => {
+                // `unidle on` while ON makes the rest of it power-only.
+                if let Some(session) = &mut self.session {
+                    session.power_only |= self.power_only;
+                }
                 if source != wanted {
                     self.state = State::On {
                         source: wanted,
@@ -317,6 +358,7 @@ impl<A: PlatformAdapter> Controller<A> {
                 self.power_only = false;
                 self.planner.stop();
                 self.log(Instant::now(), EventKind::TurnedOff);
+                self.close_session(at);
                 self.adapter.release()?;
             }
         }
@@ -407,6 +449,13 @@ impl<A: PlatformAdapter> Controller<A> {
             self.automation
                 .set_manual(false, wall.timestamp(), wall.time_zone());
             self.log(now, EventKind::OffAfterSleep);
+            // The session ended as the computer went to sleep, not on waking.
+            let slept = after.saturating_sub(before);
+            let fell_asleep = jiff::SignedDuration::try_from(slept)
+                .ok()
+                .and_then(|slept| wall.timestamp().checked_sub(slept).ok())
+                .unwrap_or_else(|| wall.timestamp());
+            self.close_session(fell_asleep);
         }
         self.asleep_mark = asleep;
     }
@@ -465,7 +514,12 @@ impl<A: PlatformAdapter> Controller<A> {
         let kind = match self.planner.due(now, idle) {
             Due::SkipUserActive => EventKind::SkippedUserActive,
             Due::Nudge(kind) => match self.adapter.nudge(kind) {
-                Ok(()) => EventKind::Nudged(kind),
+                Ok(()) => {
+                    if let Some(session) = &mut self.session {
+                        session.nudges += 1;
+                    }
+                    EventKind::Nudged(kind)
+                }
                 Err(error) => EventKind::NudgeFailed(error.0),
             },
         };
@@ -507,6 +561,7 @@ impl<A: PlatformAdapter> Drop for Controller<A> {
             self.state = State::Off;
             let _ = self.adapter.release();
         }
+        self.close_session(Timestamp::now());
     }
 }
 
@@ -996,6 +1051,136 @@ mod tests {
             controller.turn_off().unwrap();
         }
         assert_eq!(controller.events().count(), EVENT_LOG_CAPACITY);
+    }
+
+    mod sessions {
+        use std::sync::{Arc, Mutex};
+
+        use super::*;
+        use crate::conditions::Conditions;
+        use crate::schedule::tests::{at, paris};
+
+        fn wall(time: &str) -> Zoned {
+            at(time).to_zoned(paris())
+        }
+
+        fn logged(controller: &mut Controller<FakeAdapter>) -> Arc<Mutex<Vec<Session>>> {
+            let sessions: Arc<Mutex<Vec<Session>>> = Arc::default();
+            let sink = sessions.clone();
+            controller.set_session_sink(Some(Box::new(move |session| {
+                sink.lock().unwrap().push(session);
+            })));
+            sessions
+        }
+
+        #[test]
+        fn a_session_runs_from_on_to_off_and_counts_nudges() {
+            let mut controller = Controller::new(FakeAdapter::default());
+            let sessions = logged(&mut controller);
+            controller
+                .set_manual_at(true, &wall("2026-11-05T09:00"))
+                .unwrap();
+            controller.tick_at(
+                Instant::now() + Duration::from_secs(73),
+                &wall("2026-11-05T09:01"),
+            );
+            assert!(sessions.lock().unwrap().is_empty());
+            controller
+                .set_manual_at(false, &wall("2026-11-05T10:00"))
+                .unwrap();
+            assert_eq!(
+                *sessions.lock().unwrap(),
+                [Session {
+                    start: at("2026-11-05T09:00"),
+                    end: at("2026-11-05T10:00"),
+                    source: Source::Manual,
+                    power_only: false,
+                    nudges: 1,
+                }]
+            );
+        }
+
+        #[test]
+        fn the_running_session_is_logged_and_power_only_sticks() {
+            let mut controller = Controller::new(FakeAdapter::default());
+            controller.turn_on().unwrap();
+            let sessions = logged(&mut controller);
+            // The session running when the log is turned on is logged too.
+            controller
+                .set_manual_with(true, true, &wall("2026-11-05T09:30"))
+                .unwrap();
+            controller.turn_off().unwrap();
+            let sessions = sessions.lock().unwrap();
+            assert_eq!(sessions.len(), 1);
+            assert!(sessions[0].power_only);
+            assert_eq!(sessions[0].nudges, 0);
+        }
+
+        #[test]
+        fn a_hold_ends_the_session_and_resuming_starts_another() {
+            let adapter = FakeAdapter::default();
+            let env = adapter.env.clone();
+            env.borrow_mut().locked = Some(false);
+            let mut controller = Controller::new(adapter);
+            let sessions = logged(&mut controller);
+            controller
+                .set_conditions(Conditions {
+                    release_when_locked: true,
+                    ..Conditions::new()
+                })
+                .unwrap();
+            controller
+                .set_manual_at(true, &wall("2026-11-05T09:00"))
+                .unwrap();
+            env.borrow_mut().locked = Some(true);
+            controller.tick_at(Instant::now(), &wall("2026-11-05T09:20"));
+            env.borrow_mut().locked = Some(false);
+            controller.tick_at(Instant::now(), &wall("2026-11-05T09:50"));
+            controller
+                .set_manual_at(false, &wall("2026-11-05T10:00"))
+                .unwrap();
+            let spans: Vec<_> = sessions
+                .lock()
+                .unwrap()
+                .iter()
+                .map(|session| (session.start, session.end))
+                .collect();
+            assert_eq!(
+                spans,
+                [
+                    (at("2026-11-05T09:00"), at("2026-11-05T09:20")),
+                    (at("2026-11-05T09:50"), at("2026-11-05T10:00")),
+                ]
+            );
+        }
+
+        #[test]
+        fn sleep_ends_the_session_when_the_computer_fell_asleep() {
+            let adapter = FakeAdapter::default();
+            let env = adapter.env.clone();
+            env.borrow_mut().asleep = Some(Duration::from_secs(100));
+            let mut controller = Controller::new(adapter);
+            let sessions = logged(&mut controller);
+            controller
+                .set_manual_at(true, &wall("2026-11-05T09:00"))
+                .unwrap();
+            controller.tick_at(Instant::now(), &wall("2026-11-05T09:10"));
+            env.borrow_mut().asleep = Some(Duration::from_secs(100 + 3600));
+            controller.tick_at(Instant::now(), &wall("2026-11-05T11:10"));
+            assert!(!controller.status().is_on());
+            let sessions = sessions.lock().unwrap();
+            assert_eq!(sessions.len(), 1);
+            assert_eq!(sessions[0].end, at("2026-11-05T10:10"));
+        }
+
+        #[test]
+        fn quitting_ends_the_session() {
+            let mut controller = Controller::new(FakeAdapter::default());
+            let sessions = logged(&mut controller);
+            controller.turn_on().unwrap();
+            drop(controller);
+            assert_eq!(sessions.lock().unwrap().len(), 1);
+        }
     }
 
     mod automation {

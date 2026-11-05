@@ -166,7 +166,7 @@ Phase 2 of the [roadmap](ROADMAP.md). The toggle is one input among several: the
 
 These constraints apply whatever stack is chosen:
 - Separate the **simulation core** (platform adapters for power assertion and input nudge) from the **UI shell**, so the core is unit-testable and could also ship as a CLI (`unidle on|off|status`, §13).
-- One **controller** owns the state machine: `OFF → ON(source) → OFF`, with an event log kept in memory only.
+- One **controller** owns the state machine: `OFF → ON(source) → OFF`, with an event log kept in memory only. The activity log (§15) is separate: opt-in, one row per session, never the event log.
 - Platform adapters expose a common interface: `acquire()`, `release()`, `nudge()`, `capabilities()`.
 - The UI only talks to the controller, never to OS APIs directly.
 
@@ -215,3 +215,11 @@ Phase 4 of the [roadmap](ROADMAP.md). Conditions decide whether Unidle should ru
 - **CO-4 Polling.** Conditions are read every 5 s while ON or held, only those that are set, and never while OFF. Lock: logind `LockedHint` or `org.freedesktop.ScreenSaver.GetActive` on Linux, the input desktop on Windows, `CGSSessionScreenIsLocked` on macOS. Power: `/sys/class/power_supply`, `GetSystemPowerStatus`, IOKit power sources. Apps: `/proc`, a ToolHelp snapshot, `proc_listallpids`. Only process names are read, never their contents or windows (NFR-2).
 - **CO-5 Precedence.** Conditions come after SC-5: they never turn anything ON, only hold what the user, a timer or the schedule turned ON.
 
+## 15. Phase 4: Activity log
+
+Phase 4 of the [roadmap](ROADMAP.md). An opt-in, local record of when Unidle kept the computer awake, for the user's own timesheets or for showing IT what it did.
+
+- **AL-1 Opt-in.** Off by default. Settings → Activity log → "Keep an activity log". Turning it off stops adding rows and keeps the ones already there.
+- **AL-2 One row per ON session**, written when it ends: turned OFF, paused by a condition (§14), the computer slept (CO-3, ending when it fell asleep, not when it woke), or the app quit. A session cut short by a crash, or by the process being killed, has no row. A timer that ends inside a schedule window continues the same session.
+- **AL-3 Columns:** `start,end,duration_seconds,source,power_only,nudges`. Times are local with their UTC offset (`2026-11-05T09:00:00+01:00`); `source` is `manual`, `timer` or `schedule`, the one it started with; `power_only` is `true` when any of it ran without nudges by request (§13); `nudges` counts the ones sent. Nothing about what the user did, typed or ran is written (NFR-2).
+- **AL-4 Stays on this computer**: `activity-log.csv` in the app's data directory, at most 5,000 rows, the oldest dropped first. "Export…" saves a copy where the user picks; "Clear" (clicked twice) deletes it.

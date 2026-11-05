@@ -220,6 +220,28 @@
           </section>
 
           <section class="group">
+            <h2 id="h-activity-log" class="group-title"></h2>
+            <label class="row">
+              <span class="row-text">
+                <span id="l-activity-log" class="row-label"></span>
+                <span id="d-activity-log" class="row-hint"></span>
+              </span>
+              <input id="activity-log" class="switch" type="checkbox" role="switch" />
+            </label>
+            <!-- Outside the switch's reach: what was logged can be saved or cleared after it is turned off. -->
+            <div class="row">
+              <span class="row-text">
+                <span id="l-activity-file" class="row-label"></span>
+                <span id="d-activity-file" class="row-hint"></span>
+              </span>
+              <span class="file-actions">
+                <button id="activity-clear" class="as-btn secondary" type="button"></button>
+                <button id="activity-export" class="as-btn secondary" type="button"></button>
+              </span>
+            </div>
+          </section>
+
+          <section class="group">
             <h2 id="h-system" class="group-title"></h2>
             <label class="row">
               <span id="l-display" class="row-label"></span>

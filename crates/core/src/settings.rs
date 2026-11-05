@@ -92,6 +92,9 @@ pub struct Settings {
     pub release_when_locked: bool,
     /// Turn OFF after the computer sleeps.
     pub off_after_sleep: bool,
+    /// Keep a CSV of ON sessions on this computer (SPEC §15). Off until the
+    /// user turns it on.
+    pub activity_log: bool,
 }
 
 impl Default for Settings {
@@ -121,6 +124,7 @@ impl Default for Settings {
             while_running: Vec::new(),
             release_when_locked: false,
             off_after_sleep: true,
+            activity_log: false,
         }
     }
 }
@@ -237,6 +241,7 @@ impl Settings {
             }),
             release_when_locked: read.bool("releaseWhenLocked", defaults.release_when_locked),
             off_after_sleep: read.bool("offAfterSleep", defaults.off_after_sleep),
+            activity_log: read.bool("activityLog", defaults.activity_log),
         };
         (settings, fallbacks)
     }
@@ -429,6 +434,7 @@ mod tests {
             while_running: vec!["zoom".into(), "Blender.exe".into()],
             release_when_locked: true,
             off_after_sleep: false,
+            activity_log: true,
         };
         let (read, fallbacks) = Settings::from_json(&settings.to_json());
         assert_eq!(read, settings);
@@ -548,6 +554,8 @@ mod tests {
         assert!(settings.show_timers);
         assert!(!settings.schedule_enabled);
         assert!(settings.schedule_windows.is_empty());
+        assert!(settings.off_after_sleep);
+        assert!(!settings.activity_log);
     }
 
     #[test]
