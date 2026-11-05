@@ -22,8 +22,9 @@ pub use conditions::{Conditions, Hold, Reading};
 pub use controller::{Controller, Event, EventKind, SessionSink, Source, Status};
 pub use nudge::{DEFAULT_INTERVAL, MAX_INTERVAL, MIN_INTERVAL, NudgeConfig, NudgeMethod};
 pub use platform::{
-    Environment, Input, PowerAssertion, PowerOptions, PowerSource, normalize_process_name,
-    open_input_permission_settings, request_input_permission,
+    Environment, Input, ManagedSignal, Policy, PowerAssertion, PowerOptions, PowerSource,
+    managed_signal, normalize_process_name, open_input_permission_settings, read_policy,
+    request_input_permission,
 };
 pub use schedule::{
     MINUTES_PER_DAY, Schedule, TimeWindow, Weekdays, format_time, next_local_time, parse_time,

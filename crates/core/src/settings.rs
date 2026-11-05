@@ -95,6 +95,9 @@ pub struct Settings {
     /// Keep a CSV of ON sessions on this computer (SPEC §15). Off until the
     /// user turns it on.
     pub activity_log: bool,
+    /// The work computer check ran once, at the first launch that showed the
+    /// window (SPEC §16).
+    pub managed_check_done: bool,
 }
 
 impl Default for Settings {
@@ -125,6 +128,7 @@ impl Default for Settings {
             release_when_locked: false,
             off_after_sleep: true,
             activity_log: false,
+            managed_check_done: false,
         }
     }
 }
@@ -242,6 +246,7 @@ impl Settings {
             release_when_locked: read.bool("releaseWhenLocked", defaults.release_when_locked),
             off_after_sleep: read.bool("offAfterSleep", defaults.off_after_sleep),
             activity_log: read.bool("activityLog", defaults.activity_log),
+            managed_check_done: read.bool("managedCheckDone", defaults.managed_check_done),
         };
         (settings, fallbacks)
     }
@@ -435,6 +440,7 @@ mod tests {
             release_when_locked: true,
             off_after_sleep: false,
             activity_log: true,
+            managed_check_done: true,
         };
         let (read, fallbacks) = Settings::from_json(&settings.to_json());
         assert_eq!(read, settings);
@@ -556,6 +562,7 @@ mod tests {
         assert!(settings.schedule_windows.is_empty());
         assert!(settings.off_after_sleep);
         assert!(!settings.activity_log);
+        assert!(!settings.managed_check_done);
     }
 
     #[test]

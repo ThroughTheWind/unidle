@@ -26,6 +26,18 @@ unidle off
 
 The `.deb` puts `unidle` on your `PATH`, and the AppImage takes the same commands. On Windows the binary is `unidle.exe` in the install folder, and on macOS it is `Unidle.app/Contents/MacOS/unidle`: add it to your `PATH` or link it. Details are in [SPEC §13](docs/SPEC.md#13-phase-4-command-line).
 
+## On a work computer
+
+Unidle doesn't hide. On a computer your employer or school manages, IT can usually see every installed app and running process, security tools may flag simulated input, and activity trackers are built to spot input that doesn't match real work. Unidle doesn't try to avoid any of this, and never will.
+
+Keeping the screen on for a presentation or a long build is a common, harmless need, and power-only mode (Settings → Simulate input off, or `unidle on`) covers most of it with no simulated input at all. Using Unidle to appear active when you aren't working is a different matter: many employers treat it as misconduct, and people have lost their jobs over it. **Check your organization's IT and acceptable-use policies before installing it, or ask your IT team.** If Unidle finds signs that an organization manages your computer, it says so once and suggests power-only mode ([SPEC §16](docs/SPEC.md#16-phase-4-work-computers)).
+
+**For IT:** Unidle makes no network connections and has no telemetry. To turn input simulation off and leave only the power assertion, set `DisableInputSimulation`:
+
+- Windows: `HKLM\SOFTWARE\Policies\Unidle`, `DWORD` `DisableInputSimulation` = `1` (Group Policy or Intune).
+- macOS: a configuration profile for the `com.throughthewind.unidle` domain with `DisableInputSimulation` = `true`.
+- Linux: `/etc/unidle/policy.json` containing `{"disableInputSimulation": true}`.
+
 ## Develop
 
 You need [Rust](https://rustup.rs) (stable), Node 22.18 or later, and the [Tauri system dependencies](https://v2.tauri.app/start/prerequisites/) for your OS.

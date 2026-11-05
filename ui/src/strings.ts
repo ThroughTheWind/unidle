@@ -23,6 +23,7 @@ export const strings = {
   turnOffFailed: "Couldn't turn off",
   notImplemented: "This system can't be kept awake yet",
   inputUnavailable: "Input simulation unavailable: keeping the system awake only.",
+  inputPolicy: "Your organization turned off input simulation: keeping the system awake only.",
   openAccessibility: "Open Accessibility settings",
 
   // Quick timers and the source line (SPEC SC-3, SC-4).
@@ -162,6 +163,18 @@ export const strings = {
   shortcutRecording: "Press keys…",
   shortcutNeedsModifier: "Use at least one of Ctrl, Alt, Shift or Super with a key",
   shortcutClear: "Clear",
+
+  // Work computers (SPEC §16). Never a "safe" verdict: no check can see an organization's rules.
+  noticeTitle: "Is this a work computer?",
+  noticeText:
+    "This computer appears to be managed by an organization. Its IT team can likely see the apps you install and may monitor activity. Check your organization's policy before using Unidle here.",
+  noticePowerOnly: "Use power-only mode",
+  noticeContinue: "Continue",
+  noticeLearnMore: "Learn more",
+  workComputer: "Work computer",
+  workComputerHint: "Check for signs that an organization manages this computer",
+  workComputerCheck: "Check",
+  workComputerNone: "No sign found. A work computer can still have its own rules.",
   version: (version: string) => `Unidle ${version}`,
   // Icon buttons in the bar. Both open a page in the browser; the app itself makes no network request (SPEC NFR-2).
   checkUpdates: "Check for new versions",

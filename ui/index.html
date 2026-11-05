@@ -84,6 +84,17 @@
         </form>
       </main>
 
+      <!-- Once, when this computer looks managed by an organization (SPEC §16). Never blocks. -->
+      <section id="notice-view" class="view notice" role="alertdialog" aria-labelledby="notice-title" aria-describedby="notice-text" hidden>
+        <h2 id="notice-title" class="notice-title"></h2>
+        <p id="notice-text" class="notice-text"></p>
+        <div class="notice-actions">
+          <button id="notice-power-only" class="as-btn primary" type="button"></button>
+          <button id="notice-continue" class="as-btn secondary" type="button"></button>
+          <button id="notice-learn" class="as-btn ghost" type="button"></button>
+        </div>
+      </section>
+
       <section id="settings-view" class="view settings" hidden>
         <div class="settings-scroll">
           <section class="group">
@@ -275,6 +286,13 @@
                 <button id="shortcut-record" class="as-btn secondary shortcut-key" type="button"></button>
                 <button id="shortcut-clear" class="as-btn ghost" type="button"></button>
               </span>
+            </div>
+            <div class="row">
+              <span class="row-text">
+                <span id="l-work-computer" class="row-label"></span>
+                <span id="d-work-computer" class="row-hint" aria-live="polite"></span>
+              </span>
+              <button id="work-computer-check" class="as-btn secondary" type="button"></button>
             </div>
           </section>
 

@@ -2,7 +2,8 @@ use std::time::Duration;
 
 use crate::adapter::{AdapterError, Capabilities, NudgeKey, NudgeKind, PlatformAdapter};
 use crate::platform::{
-    Environment, Input, POWER_ASSERTION_SUPPORTED, PowerAssertion, PowerOptions, PowerSource,
+    Environment, Input, POWER_ASSERTION_SUPPORTED, Policy, PowerAssertion, PowerOptions,
+    PowerSource,
 };
 
 /// The real adapter: holds an OS power assertion while ON, and sends input
@@ -15,11 +16,14 @@ pub struct SystemAdapter {
 }
 
 impl SystemAdapter {
+    /// Reads the organization's policy once, here (SPEC §16).
     pub fn new(options: PowerOptions) -> Self {
+        let mut input = Input::new();
+        input.set_policy(crate::platform::read_policy());
         Self {
             options,
             assertion: None,
-            input: Input::new(),
+            input,
             environment: Environment::default(),
         }
     }
@@ -50,6 +54,12 @@ impl SystemAdapter {
     /// this OS is replaced by the default.
     pub fn set_nudge_key(&mut self, key: NudgeKey) {
         self.input.set_key(key);
+    }
+
+    /// The organization's policy (SPEC §16): with input simulation turned
+    /// off, nudges are unavailable, as they are on Wayland.
+    pub fn set_policy(&mut self, policy: Policy) {
+        self.input.set_policy(policy);
     }
 
     pub fn is_holding(&self) -> bool {

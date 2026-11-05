@@ -8,6 +8,7 @@ mod settings;
 mod strings;
 mod tray;
 mod window;
+mod work_computer;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
@@ -100,6 +101,7 @@ impl From<Status> for StatusDto {
                     InputUnavailable::Wayland => "wayland",
                     InputUnavailable::NoDisplay => "noDisplay",
                     InputUnavailable::Unsupported => "unsupported",
+                    InputUnavailable::Policy => "policy",
                 }),
             source: status.source.map(|source| match source {
                 Source::Manual => "manual",
@@ -361,6 +363,8 @@ fn nudge_keys() -> Vec<&'static str> {
 /// makes no network request (SPEC NFR-2).
 const RELEASES_URL: &str = "https://github.com/ThroughTheWind/unidle/releases";
 const WEBSITE_URL: &str = "https://throughthewind.github.io/unidle/";
+/// What IT can see, and the policy it can set (SPEC §16).
+const WORK_COMPUTER_URL: &str = "https://github.com/ThroughTheWind/unidle#on-a-work-computer";
 
 #[tauri::command]
 fn open_link(app: AppHandle, link: String) -> Result<(), String> {
@@ -368,6 +372,7 @@ fn open_link(app: AppHandle, link: String) -> Result<(), String> {
     let url = match link.as_str() {
         "releases" => RELEASES_URL,
         "website" => WEBSITE_URL,
+        "workComputer" => WORK_COMPUTER_URL,
         _ => return Err(format!("unknown link: {link}")),
     };
     app.opener()
@@ -543,6 +548,8 @@ fn main() -> std::process::ExitCode {
             import_schedule,
             activity_log::export_activity_log,
             activity_log::clear_activity_log,
+            work_computer::take_managed_notice,
+            work_computer::check_managed,
             get_settings,
             update_settings,
             nudge_keys,

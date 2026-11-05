@@ -4,7 +4,7 @@
 use std::time::Duration;
 
 use jiff::{Timestamp, ToSpan as _, Zoned};
-use unidle_core::{Hold, Source, Status};
+use unidle_core::{Hold, InputUnavailable, Source, Status};
 
 #[cfg(target_os = "macos")]
 pub const APP_NAME: &str = "Unidle";
@@ -62,6 +62,7 @@ pub const CLI_HOW_TO_STOP: &str = "Stop it with `unidle off`, or from the tray."
 pub const CLI_POWER_ONLY: &str = "Power only: no input nudges";
 pub const CLI_NUDGING: &str = "Input nudges: on";
 pub const CLI_NOT_NUDGING: &str = "Input nudges: off";
+pub const CLI_POLICY: &str = "Input nudges: off by your organization's policy";
 
 /// The status for `unidle status` (SPEC §13): the tray's lines, then
 /// whether nudges are sent.
@@ -74,6 +75,8 @@ pub fn cli_status(status: &Status, now: &Zoned) -> String {
                 CLI_POWER_ONLY
             } else if status.nudging {
                 CLI_NUDGING
+            } else if status.capabilities.input_unavailable == Some(InputUnavailable::Policy) {
+                CLI_POLICY
             } else {
                 CLI_NOT_NUDGING
             }

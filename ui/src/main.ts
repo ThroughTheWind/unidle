@@ -14,7 +14,7 @@ interface Status {
   elapsedSecs: number;
   powerAssertion: boolean;
   nudging: boolean;
-  inputUnavailable: "needsPermission" | "wayland" | "noDisplay" | "unsupported" | null;
+  inputUnavailable: "needsPermission" | "wayland" | "noDisplay" | "unsupported" | "policy" | null;
   /** Who turned it on (SPEC SC-4). */
   source: "manual" | "timer" | "schedule" | null;
   /** The next time a timer or the schedule turns it ON or OFF; ms since the epoch. */
@@ -157,7 +157,7 @@ function renderStatus(): void {
     setStatusLine("warning", strings.notImplemented);
   } else if (status.on && wantsNudges && status.inputUnavailable !== null) {
     // Power assertion only: say so, without blocking anything (SPEC PB-2).
-    setStatusLine("warning", strings.inputUnavailable);
+    setStatusLine("warning", status.inputUnavailable === "policy" ? strings.inputPolicy : strings.inputUnavailable);
     statusAction.hidden = status.inputUnavailable !== "needsPermission";
   } else {
     setStatusLine(null);
@@ -636,12 +636,13 @@ shortcutRecord.addEventListener("blur", () => {
 });
 shortcutClear.addEventListener("click", () => void update({ globalShortcut: null }));
 
-function showView(name: "main" | "settings"): void {
+function showView(name: "main" | "settings" | "notice"): void {
   const inSettings = name === "settings";
-  mainView.hidden = inSettings;
+  mainView.hidden = name !== "main";
   settingsView.hidden = !inSettings;
+  noticeView.hidden = name !== "notice";
   back.hidden = !inSettings;
-  openSettings.hidden = inSettings;
+  openSettings.hidden = name !== "main";
   // The main screen stays uncluttered: only the update link sits there.
   openWebsite.hidden = !inSettings;
   shell.classList.toggle("in-settings", inSettings);
@@ -650,7 +651,8 @@ function showView(name: "main" | "settings"): void {
   text("title", inSettings ? strings.settings : "");
   if (recording) stopRecording();
   showSettingsError(null);
-  (inSettings ? back : power).focus();
+  if (name === "notice") noticePowerOnly.focus();
+  else (inSettings ? back : power).focus();
 }
 
 openSettings.addEventListener("click", () => showView("settings"));
@@ -742,7 +744,34 @@ async function takeTimerPickerRequest(): Promise<void> {
 await listen("show-timer-picker", () => void takeTimerPickerRequest());
 await takeTimerPickerRequest();
 
+// Work computers (SPEC §16): the notice suggests power-only mode and never blocks.
+const noticeView = element("notice-view");
+const noticePowerOnly = element<HTMLButtonElement>("notice-power-only");
+const noticeContinue = element<HTMLButtonElement>("notice-continue");
+const noticeLearn = element<HTMLButtonElement>("notice-learn");
+text("notice-title", strings.noticeTitle);
+text("notice-text", strings.noticeText);
+noticePowerOnly.textContent = strings.noticePowerOnly;
+noticeContinue.textContent = strings.noticeContinue;
+noticeLearn.textContent = strings.noticeLearnMore;
+noticePowerOnly.addEventListener("click", async () => {
+  await update({ nudgeEnabled: false });
+  showView("main");
+});
+noticeContinue.addEventListener("click", () => showView("main"));
+noticeLearn.addEventListener("click", () => void invoke("open_link", { link: "workComputer" }));
+
+text("l-work-computer", strings.workComputer);
+text("d-work-computer", strings.workComputerHint);
+const workComputerCheck = element<HTMLButtonElement>("work-computer-check");
+workComputerCheck.textContent = strings.workComputerCheck;
+workComputerCheck.addEventListener("click", async () => {
+  if ((await invoke<string | null>("check_managed")) !== null) showView("notice");
+  else text("d-work-computer", strings.workComputerNone);
+});
+
 await refreshStatus();
+if ((await invoke<string | null>("take_managed_notice")) !== null) showView("notice");
 setInterval(() => {
   if (pending !== null) return;
   // ON: the elapsed time. OFF with a change planned: "tomorrow" becomes today.

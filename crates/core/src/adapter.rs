@@ -15,6 +15,8 @@ pub enum InputUnavailable {
     NoDisplay,
     /// The OS or display server lacks what the nudge needs.
     Unsupported,
+    /// The organization's IT policy turned input simulation off (SPEC §16).
+    Policy,
 }
 
 /// What a platform can do right now. The app still turns ON when a capability

@@ -7,12 +7,14 @@ use std::time::Duration;
 use crate::adapter::{AdapterError, InputUnavailable, NudgeKey, NudgeKind};
 
 pub use environment::{Environment, PowerSource, normalize_process_name};
+pub use managed::{ManagedSignal, Policy, managed_signal, read_policy};
 
 mod environment;
 #[cfg(target_os = "linux")]
 mod linux;
 #[cfg(target_os = "macos")]
 mod macos;
+mod managed;
 #[cfg(windows)]
 mod windows;
 
@@ -73,6 +75,7 @@ pub const POWER_ASSERTION_SUPPORTED: bool =
 pub struct Input {
     inner: sys::Input,
     key: NudgeKey,
+    policy: Policy,
 }
 
 impl Input {
@@ -80,6 +83,7 @@ impl Input {
         Self {
             inner: sys::Input::new(),
             key: NudgeKey::platform_default(),
+            policy: Policy::default(),
         }
     }
 
@@ -96,7 +100,16 @@ impl Input {
     /// enough to call on every status read: on macOS the permission can be
     /// granted while the app runs.
     pub fn availability(&self) -> Result<(), InputUnavailable> {
+        if self.policy.disable_input_simulation {
+            return Err(InputUnavailable::Policy);
+        }
         self.inner.availability()
+    }
+
+    /// Takes effect at once: a policy that turns input off wins over the
+    /// settings, and every nudge checks it.
+    pub fn set_policy(&mut self, policy: Policy) {
+        self.policy = policy;
     }
 
     pub fn nudge(&mut self, kind: NudgeKind) -> Result<(), AdapterError> {
