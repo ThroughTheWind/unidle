@@ -158,6 +158,17 @@ pub trait PlatformAdapter {
     fn time_asleep(&mut self) -> Option<Duration> {
         None
     }
+
+    /// The Wi-Fi networks joined, normalized with
+    /// [`crate::platform::normalize_network_name`]; empty on none.
+    fn wifi_networks(&mut self) -> Option<Vec<String>> {
+        None
+    }
+
+    /// Whether a VPN tunnel is up.
+    fn vpn_connected(&mut self) -> Option<bool> {
+        None
+    }
 }
 
 /// Does nothing and reports no capabilities. Useful in tests and on an OS

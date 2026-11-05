@@ -8,6 +8,7 @@ use crate::adapter::{AdapterError, InputUnavailable, NudgeKey, NudgeKind};
 
 pub use environment::{Environment, PowerSource, normalize_process_name};
 pub use managed::{ManagedSignal, Policy, managed_signal, read_policy};
+pub use network::{Network, normalize_network_name};
 
 mod environment;
 #[cfg(target_os = "linux")]
@@ -15,6 +16,7 @@ mod linux;
 #[cfg(target_os = "macos")]
 mod macos;
 mod managed;
+mod network;
 #[cfg(windows)]
 mod windows;
 

@@ -42,6 +42,8 @@ pub fn held(hold: Hold) -> &'static str {
         Hold::OnBattery => "Paused on battery power",
         Hold::LowBattery => "Paused: battery low",
         Hold::AppNotRunning => "Paused until a chosen app runs",
+        Hold::NotOnNetwork => "Paused until on a chosen Wi-Fi network",
+        Hold::NoVpn => "Paused until a VPN connects",
     }
 }
 

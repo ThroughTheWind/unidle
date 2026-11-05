@@ -7,7 +7,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::platform::{PowerSource, normalize_process_name};
+use crate::platform::{PowerSource, normalize_network_name, normalize_process_name};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
@@ -18,6 +18,10 @@ pub struct Conditions {
     pub min_battery: Option<u8>,
     /// Run only while one of these apps is running. Empty means always.
     pub while_running: Vec<String>,
+    /// Run only while on one of these Wi-Fi networks. Empty means any.
+    pub on_networks: Vec<String>,
+    /// Run only while a VPN is connected.
+    pub only_on_vpn: bool,
     /// Let the computer sleep while the screen is locked. Nudges always stop
     /// while it is locked, this or not.
     pub release_when_locked: bool,
@@ -33,6 +37,8 @@ impl Default for Conditions {
             only_on_ac: false,
             min_battery: None,
             while_running: Vec::new(),
+            on_networks: Vec::new(),
+            only_on_vpn: false,
             release_when_locked: false,
             off_after_sleep: true,
         }
@@ -49,18 +55,24 @@ impl Conditions {
         self.only_on_ac
             || self.min_battery.is_some()
             || !self.while_running.is_empty()
+            || !self.on_networks.is_empty()
+            || self.only_on_vpn
             || self.release_when_locked
     }
 
     /// Drops blank names, and battery levels outside 1 to 99.
     pub fn cleaned(mut self) -> Self {
-        self.while_running = self
-            .while_running
-            .iter()
-            .map(|name| name.trim().to_string())
-            .filter(|name| !name.is_empty())
-            .collect();
-        self.while_running.dedup();
+        let clean = |names: &[String]| {
+            let mut names: Vec<String> = names
+                .iter()
+                .map(|name| name.trim().to_string())
+                .filter(|name| !name.is_empty())
+                .collect();
+            names.dedup();
+            names
+        };
+        self.while_running = clean(&self.while_running);
+        self.on_networks = clean(&self.on_networks);
         self.min_battery = self
             .min_battery
             .filter(|percent| (1..=99).contains(percent));
@@ -75,6 +87,8 @@ pub enum Hold {
     OnBattery,
     LowBattery,
     AppNotRunning,
+    NotOnNetwork,
+    NoVpn,
 }
 
 impl Hold {
@@ -84,6 +98,8 @@ impl Hold {
             Hold::OnBattery => "onBattery",
             Hold::LowBattery => "lowBattery",
             Hold::AppNotRunning => "appNotRunning",
+            Hold::NotOnNetwork => "notOnNetwork",
+            Hold::NoVpn => "noVpn",
         }
     }
 }
@@ -95,6 +111,9 @@ pub struct Reading {
     pub power: Option<PowerSource>,
     /// Normalized process names.
     pub processes: Option<Vec<String>>,
+    /// Normalized Wi-Fi network names; empty when on none.
+    pub networks: Option<Vec<String>>,
+    pub vpn: Option<bool>,
 }
 
 /// The first condition that holds simulation OFF, if any. Checked in a fixed
@@ -126,6 +145,21 @@ pub fn hold(conditions: &Conditions, reading: &Reading) -> Option<Hold> {
             return Some(Hold::AppNotRunning);
         }
     }
+    if !conditions.on_networks.is_empty()
+        && let Some(networks) = &reading.networks
+    {
+        let on_one = conditions
+            .on_networks
+            .iter()
+            .map(|name| normalize_network_name(name))
+            .any(|wanted| networks.contains(&wanted));
+        if !on_one {
+            return Some(Hold::NotOnNetwork);
+        }
+    }
+    if conditions.only_on_vpn && reading.vpn == Some(false) {
+        return Some(Hold::NoVpn);
+    }
     None
 }
 
@@ -146,6 +180,8 @@ mod tests {
             locked: Some(true),
             power: battery(false, 3),
             processes: Some(vec![]),
+            networks: Some(vec![]),
+            vpn: Some(false),
         };
         assert_eq!(hold(&Conditions::new(), &reading), None);
     }
@@ -201,6 +237,36 @@ mod tests {
     }
 
     #[test]
+    fn network_conditions() {
+        let office = Conditions {
+            on_networks: vec!["Office WiFi".into()],
+            ..Conditions::new()
+        };
+        let on = |names: &[&str]| Reading {
+            networks: Some(names.iter().map(|n| normalize_network_name(n)).collect()),
+            ..Reading::default()
+        };
+        assert_eq!(hold(&office, &on(&["office wifi"])), None);
+        assert_eq!(hold(&office, &on(&["Cafe"])), Some(Hold::NotOnNetwork));
+        // On a cable, no Wi-Fi at all: not the chosen network.
+        assert_eq!(hold(&office, &on(&[])), Some(Hold::NotOnNetwork));
+        // The OS won't say which network: never a guess.
+        assert_eq!(hold(&office, &Reading::default()), None);
+
+        let vpn = Conditions {
+            only_on_vpn: true,
+            ..Conditions::new()
+        };
+        let with = |vpn| Reading {
+            vpn,
+            ..Reading::default()
+        };
+        assert_eq!(hold(&vpn, &with(Some(false))), Some(Hold::NoVpn));
+        assert_eq!(hold(&vpn, &with(Some(true))), None);
+        assert_eq!(hold(&vpn, &with(None)), None);
+    }
+
+    #[test]
     fn locked_holds_only_when_asked() {
         let reading = Reading {
             locked: Some(true),
@@ -219,9 +285,11 @@ mod tests {
         let conditions = Conditions {
             min_battery: Some(0),
             while_running: vec![" zoom ".into(), "".into(), "zoom".into()],
+            on_networks: vec![" Office ".into(), " ".into()],
             ..Conditions::new()
         }
         .cleaned();
+        assert_eq!(conditions.on_networks, ["Office"]);
         assert_eq!(conditions.min_battery, None);
         assert_eq!(conditions.while_running, ["zoom"]);
         let parsed: Conditions = serde_json::from_str("{}").unwrap();

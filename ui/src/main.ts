@@ -22,7 +22,7 @@ interface Status {
   /** While a manual OFF pauses a schedule window: when the window ends. */
   pausedUntil: number | null;
   /** Wanted ON, but a condition holds it OFF for now (SPEC §14). */
-  held: "locked" | "onBattery" | "lowBattery" | "appNotRunning" | null;
+  held: "locked" | "onBattery" | "lowBattery" | "appNotRunning" | "notOnNetwork" | "noVpn" | null;
 }
 
 type NudgeMethod = "pointer" | "keystroke" | "both";
@@ -51,6 +51,8 @@ interface Settings extends ScheduleSettings {
   onlyOnAc: boolean;
   minBattery: number | null;
   whileRunning: string[];
+  onNetworks: string[];
+  onlyOnVpn: boolean;
   releaseWhenLocked: boolean;
   offAfterSleep: boolean;
   activityLog: boolean;
@@ -315,6 +317,8 @@ const trayClickToggles = element<HTMLInputElement>("tray-click-toggles");
 const onlyOnAc = element<HTMLInputElement>("only-on-ac");
 const minBattery = element<HTMLSelectElement>("min-battery");
 const whileRunning = element<HTMLInputElement>("while-running");
+const onNetworks = element<HTMLInputElement>("on-networks");
+const onlyOnVpn = element<HTMLInputElement>("only-on-vpn");
 const releaseWhenLocked = element<HTMLInputElement>("release-when-locked");
 const offAfterSleep = element<HTMLInputElement>("off-after-sleep");
 const activityLog = element<HTMLInputElement>("activity-log");
@@ -450,6 +454,8 @@ function renderSettings(): void {
   onlyOnAc.checked = settings.onlyOnAc;
   minBattery.value = settings.minBattery === null ? "" : String(settings.minBattery);
   if (document.activeElement !== whileRunning) whileRunning.value = settings.whileRunning.join(", ");
+  if (document.activeElement !== onNetworks) onNetworks.value = settings.onNetworks.join(", ");
+  onlyOnVpn.checked = settings.onlyOnVpn;
   releaseWhenLocked.checked = settings.releaseWhenLocked;
   offAfterSleep.checked = settings.offAfterSleep;
   activityLog.checked = settings.activityLog;
@@ -529,6 +535,7 @@ onToggle(showTimers, "showTimers");
 onToggle(trayClickToggles, "trayClickToggles");
 onToggle(onlyOnAc, "onlyOnAc");
 onToggle(releaseWhenLocked, "releaseWhenLocked");
+onToggle(onlyOnVpn, "onlyOnVpn");
 onToggle(offAfterSleep, "offAfterSleep");
 onToggle(activityLog, "activityLog");
 
@@ -578,13 +585,15 @@ for (const level of strings.minBatteryLevels) minBattery.add(new Option(`${level
 minBattery.addEventListener("change", () => {
   void update({ minBattery: minBattery.value === "" ? null : Number(minBattery.value) });
 });
-whileRunning.addEventListener("change", () => {
-  const names = whileRunning.value
+/** "zoom, blender" as a list, without blanks. */
+function names(input: HTMLInputElement): string[] {
+  return input.value
     .split(",")
     .map((name) => name.trim())
     .filter((name) => name !== "");
-  void update({ whileRunning: names });
-});
+}
+whileRunning.addEventListener("change", () => void update({ whileRunning: names(whileRunning) }));
+onNetworks.addEventListener("change", () => void update({ onNetworks: names(onNetworks) }));
 
 nudgeKey.addEventListener("change", () => void update({ nudgeKey: nudgeKey.value }));
 
@@ -689,6 +698,10 @@ text("l-min-battery", strings.minBattery);
 text("d-min-battery", strings.minBatteryHint);
 text("l-while-running", strings.whileRunning);
 text("d-while-running", strings.whileRunningHint);
+text("l-on-networks", strings.onNetworks);
+text("d-on-networks", strings.onNetworksHint);
+text("l-only-vpn", strings.onlyOnVpn);
+text("d-only-vpn", strings.onlyOnVpnHint);
 text("l-locked", strings.releaseWhenLocked);
 text("d-locked", strings.releaseWhenLockedHint);
 text("l-after-sleep", strings.offAfterSleep);

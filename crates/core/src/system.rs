@@ -2,8 +2,8 @@ use std::time::Duration;
 
 use crate::adapter::{AdapterError, Capabilities, NudgeKey, NudgeKind, PlatformAdapter};
 use crate::platform::{
-    Environment, Input, POWER_ASSERTION_SUPPORTED, Policy, PowerAssertion, PowerOptions,
-    PowerSource,
+    Environment, Input, Network, POWER_ASSERTION_SUPPORTED, Policy, PowerAssertion, PowerOptions,
+    PowerSource, normalize_network_name,
 };
 
 /// The real adapter: holds an OS power assertion while ON, and sends input
@@ -13,6 +13,7 @@ pub struct SystemAdapter {
     assertion: Option<PowerAssertion>,
     input: Input,
     environment: Environment,
+    network: Network,
 }
 
 impl SystemAdapter {
@@ -25,6 +26,7 @@ impl SystemAdapter {
             assertion: None,
             input,
             environment: Environment::default(),
+            network: Network::default(),
         }
     }
 
@@ -117,5 +119,18 @@ impl PlatformAdapter for SystemAdapter {
 
     fn time_asleep(&mut self) -> Option<Duration> {
         self.environment.time_asleep()
+    }
+
+    fn wifi_networks(&mut self) -> Option<Vec<String>> {
+        self.network.wifi_networks().map(|names| {
+            names
+                .iter()
+                .map(|name| normalize_network_name(name))
+                .collect()
+        })
+    }
+
+    fn vpn_connected(&mut self) -> Option<bool> {
+        self.network.vpn_connected()
     }
 }

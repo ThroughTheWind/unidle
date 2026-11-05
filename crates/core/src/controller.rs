@@ -292,6 +292,16 @@ impl<A: PlatformAdapter> Controller<A> {
             } else {
                 self.adapter.process_names()
             },
+            networks: if conditions.on_networks.is_empty() {
+                None
+            } else {
+                self.adapter.wifi_networks()
+            },
+            vpn: if conditions.only_on_vpn {
+                self.adapter.vpn_connected()
+            } else {
+                None
+            },
         };
         crate::conditions::hold(&self.conditions, &reading)
     }
@@ -595,6 +605,8 @@ mod tests {
         power: Option<crate::platform::PowerSource>,
         processes: Option<Vec<String>>,
         asleep: Option<Duration>,
+        networks: Option<Vec<String>>,
+        vpn: Option<bool>,
     }
 
     impl Default for FakeAdapter {
@@ -658,6 +670,14 @@ mod tests {
 
         fn time_asleep(&mut self) -> Option<Duration> {
             self.env.borrow().asleep
+        }
+
+        fn wifi_networks(&mut self) -> Option<Vec<String>> {
+            self.env.borrow().networks.clone()
+        }
+
+        fn vpn_connected(&mut self) -> Option<bool> {
+            self.env.borrow().vpn
         }
     }
 
@@ -737,6 +757,30 @@ mod tests {
             controller.tick(Instant::now());
             assert!(!controller.status().is_on());
             controller.set_conditions(Conditions::new()).unwrap();
+            assert!(controller.status().is_on());
+        }
+
+        #[test]
+        fn network_conditions_hold_and_resume() {
+            let adapter = FakeAdapter::default();
+            let env = adapter.env.clone();
+            env.borrow_mut().networks = Some(vec!["cafe".into()]);
+            env.borrow_mut().vpn = Some(false);
+            let mut controller = Controller::new(adapter);
+            controller
+                .set_conditions(Conditions {
+                    on_networks: vec!["Office".into()],
+                    only_on_vpn: true,
+                    ..Conditions::new()
+                })
+                .unwrap();
+            controller.turn_on().unwrap();
+            assert_eq!(controller.status().held, Some(Hold::NotOnNetwork));
+            env.borrow_mut().networks = Some(vec!["office".into()]);
+            controller.tick(Instant::now());
+            assert_eq!(controller.status().held, Some(Hold::NoVpn));
+            env.borrow_mut().vpn = Some(true);
+            controller.tick(Instant::now());
             assert!(controller.status().is_on());
         }
 

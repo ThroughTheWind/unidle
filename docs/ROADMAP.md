@@ -94,7 +94,7 @@ Each phase ships a usable, released version. Phases are ordered by value and ris
 |---|---|---|
 | Conditions: only on AC power; stop below N% battery | S | Should |
 | Conditions: only while a given app or process is running (e.g. a video call app, a render) | M | Should |
-| Conditions: only on a given Wi-Fi network or when a VPN is connected | M | Could |
+| Conditions: only on a given Wi-Fi network or when a VPN is connected ([SPEC §14](SPEC.md#14-phase-4-conditions)) | M | Could |
 | Stop when the screen is locked or the user chooses Sleep | S | Must |
 | Calendar awareness: ON during meetings from a local `.ics` file or URL (opt-in network) | M | Could |
 | Full CLI: `unidle on|off|status|timer 30m|profile reader` | S | Should |

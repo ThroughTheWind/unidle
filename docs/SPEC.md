@@ -206,13 +206,15 @@ Phase 4 of the [roadmap](ROADMAP.md). Conditions decide whether Unidle should ru
 | Only when plugged in | Off | Held on battery power |
 | Pause on low battery | Never | Held on battery below 10, 20, 30 or 50 % |
 | Only while an app is running | Empty | Held unless one of the named processes runs (case and `.exe` ignored) |
+| Only on these Wi-Fi networks | Empty | Held unless joined to one of the named networks (case ignored); on a cable with no Wi-Fi, held |
+| Only while a VPN is connected | Off | Held while no VPN tunnel is up |
 | Let it sleep while locked | Off | Held while the screen is locked |
 | Turn off after sleep | On | After the computer sleeps while ON or held, it is OFF |
 
 - **CO-1 Never on a guess.** A reading the OS can't give (no battery information, the lock state unknown) never holds anything.
 - **CO-2 No nudges on a locked screen**, whatever the settings: the power assertion stays, so a render keeps running, but nothing is simulated for nobody.
 - **CO-3 Sleep.** While ON the assertion blocks idle sleep, so time asleep means the user chose Sleep or closed the lid (PB-4). On waking, Unidle turns OFF as a manual OFF would: a timer is cancelled and a schedule window pauses until it ends (SC-5). Detected by comparing a clock that counts sleep with one that doesn't (`CLOCK_BOOTTIME`/`CLOCK_MONOTONIC`, `QueryInterruptTime`/`QueryUnbiasedInterruptTime`, `mach_continuous_time`/`mach_absolute_time`), within 15 s of waking.
-- **CO-4 Polling.** Conditions are read every 5 s while ON or held, only those that are set, and never while OFF. Lock: logind `LockedHint` or `org.freedesktop.ScreenSaver.GetActive` on Linux, the input desktop on Windows, `CGSSessionScreenIsLocked` on macOS. Power: `/sys/class/power_supply`, `GetSystemPowerStatus`, IOKit power sources. Apps: `/proc`, a ToolHelp snapshot, `proc_listallpids`. Only process names are read, never their contents or windows (NFR-2).
+- **CO-4 Polling.** Conditions are read every 5 s while ON or held, only those that are set, and never while OFF. Lock: logind `LockedHint` or `org.freedesktop.ScreenSaver.GetActive` on Linux, the input desktop on Windows, `CGSSessionScreenIsLocked` on macOS. Power: `/sys/class/power_supply`, `GetSystemPowerStatus`, IOKit power sources. Apps: `/proc`, a ToolHelp snapshot, `proc_listallpids`. Only process names are read, never their contents or windows (NFR-2). Wi-Fi: NetworkManager's active access point, the WLAN API's current connection, `ipconfig getsummary`; Windows 11 24H2 and recent macOS hide the network name from apps without Location access, and then this condition never holds (CO-1). VPN: an interface that is up with an IPv4 address and is a tunnel by name (`tun`, `tap`, `wg`, `ppp`, `ipsec`, `utun`) or by type (Linux `ARPHRD_NONE`), or on Windows an adapter that is up and is PPP, a virtual adapter, or describes itself as a VPN, WireGuard or TAP tunnel. No traffic is sent or inspected.
 - **CO-5 Precedence.** Conditions come after SC-5: they never turn anything ON, only hold what the user, a timer or the schedule turned ON.
 
 ## 15. Phase 4: Activity log
