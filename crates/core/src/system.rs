@@ -1,7 +1,9 @@
 use std::time::Duration;
 
 use crate::adapter::{AdapterError, Capabilities, NudgeKey, NudgeKind, PlatformAdapter};
-use crate::platform::{Input, POWER_ASSERTION_SUPPORTED, PowerAssertion, PowerOptions};
+use crate::platform::{
+    Environment, Input, POWER_ASSERTION_SUPPORTED, PowerAssertion, PowerOptions, PowerSource,
+};
 
 /// The real adapter: holds an OS power assertion while ON, and sends input
 /// nudges where the OS allows it.
@@ -9,6 +11,7 @@ pub struct SystemAdapter {
     options: PowerOptions,
     assertion: Option<PowerAssertion>,
     input: Input,
+    environment: Environment,
 }
 
 impl SystemAdapter {
@@ -17,6 +20,7 @@ impl SystemAdapter {
             options,
             assertion: None,
             input: Input::new(),
+            environment: Environment::default(),
         }
     }
 
@@ -87,5 +91,21 @@ impl PlatformAdapter for SystemAdapter {
             input_nudge: input.is_ok(),
             input_unavailable: input.err(),
         }
+    }
+
+    fn screen_locked(&mut self) -> Option<bool> {
+        self.environment.screen_locked()
+    }
+
+    fn power_source(&mut self) -> Option<PowerSource> {
+        self.environment.power_source()
+    }
+
+    fn process_names(&mut self) -> Option<Vec<String>> {
+        self.environment.process_names()
+    }
+
+    fn time_asleep(&mut self) -> Option<Duration> {
+        self.environment.time_asleep()
     }
 }

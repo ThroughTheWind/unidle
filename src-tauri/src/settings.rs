@@ -65,7 +65,14 @@ pub fn apply_to_controller(app: &AppHandle, settings: &Settings) -> Result<(), S
                 .set_schedule(settings.schedule())
                 .map_err(|error| format!("The schedule could not turn activity on: {error}"))
         };
-        power.and(schedule)
+        let conditions = if *controller.conditions() == settings.conditions() {
+            Ok(())
+        } else {
+            controller
+                .set_conditions(settings.conditions())
+                .map_err(|error| format!("Activity could not resume: {error}"))
+        };
+        power.and(schedule).and(conditions)
     };
     state.ticker.wake();
     result

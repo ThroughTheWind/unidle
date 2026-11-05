@@ -4,7 +4,7 @@
 use std::time::Duration;
 
 use jiff::{Timestamp, ToSpan as _, Zoned};
-use unidle_core::{Source, Status};
+use unidle_core::{Hold, Source, Status};
 
 #[cfg(target_os = "macos")]
 pub const APP_NAME: &str = "Unidle";
@@ -33,6 +33,27 @@ pub const TIMER_UNTIL: &str = "Until a time…";
 pub const SCHEDULE_FILE_NAME: &str = "unidle-schedule.json";
 pub const SCHEDULE_FILE_FILTER: &str = "Unidle schedule";
 
+/// Wanted ON, held by a condition (SPEC §14).
+pub fn held(hold: Hold) -> &'static str {
+    match hold {
+        Hold::Locked => "Paused while the screen is locked",
+        Hold::OnBattery => "Paused on battery power",
+        Hold::LowBattery => "Paused: battery low",
+        Hold::AppNotRunning => "Paused until a chosen app runs",
+    }
+}
+
+/// The tray's first line: ON for how long, paused and why, or OFF.
+pub fn status_line(status: &Status) -> String {
+    if let Some(hold) = status.held {
+        held(hold).to_string()
+    } else if status.is_on() {
+        status_on(status.elapsed)
+    } else {
+        STATUS_OFF.to_string()
+    }
+}
+
 pub const CLI_NOT_RUNNING: &str = "Activity: OFF (Unidle isn't running)";
 pub const CLI_START_FAILED: &str = "Unidle didn't start, or an older version is running that has no command line. Quit it and try again.";
 pub const CLI_HOW_TO_STOP: &str = "Stop it with `unidle off`, or from the tray.";
@@ -43,11 +64,7 @@ pub const CLI_NOT_NUDGING: &str = "Input nudges: off";
 /// The status for `unidle status` (SPEC §13): the tray's lines, then
 /// whether nudges are sent.
 pub fn cli_status(status: &Status, now: &Zoned) -> String {
-    let mut lines = vec![if status.is_on() {
-        status_on(status.elapsed)
-    } else {
-        STATUS_OFF.to_string()
-    }];
+    let mut lines = vec![status_line(status)];
     lines.extend(detail(status, now));
     if status.is_on() {
         lines.push(
@@ -154,6 +171,7 @@ mod tests {
             }),
             paused_until: None,
             power_only: false,
+            held: None,
         }
     }
 

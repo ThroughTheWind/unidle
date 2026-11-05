@@ -21,6 +21,8 @@ interface Status {
   nextChange: { at: number; on: boolean } | null;
   /** While a manual OFF pauses a schedule window: when the window ends. */
   pausedUntil: number | null;
+  /** Wanted ON, but a condition holds it OFF for now (SPEC §14). */
+  held: "locked" | "onBattery" | "lowBattery" | "appNotRunning" | null;
 }
 
 type NudgeMethod = "pointer" | "keystroke" | "both";
@@ -46,6 +48,11 @@ interface Settings extends ScheduleSettings {
   appIcon: AppIcon;
   showTimers: boolean;
   trayClickToggles: boolean;
+  onlyOnAc: boolean;
+  minBattery: number | null;
+  whileRunning: string[];
+  releaseWhenLocked: boolean;
+  offAfterSleep: boolean;
 }
 
 /** Mirrors `APP_ICONS` in crates/core/src/settings.rs. The first is the default. */
@@ -110,7 +117,8 @@ function renderStatus(): void {
   if (!status) return;
   const style = buttonStyle(settings?.buttonStyle);
   const eye = style === "eye";
-  const on = pending ?? status.on;
+  // Held by a condition counts as ON for the button: clicking turns it OFF.
+  const on = pending ?? (status.on || status.held !== null);
 
   power.setAttribute("aria-checked", String(on));
   power.setAttribute("aria-busy", String(pending !== null));
@@ -123,6 +131,9 @@ function renderStatus(): void {
 
   if (pending !== null) {
     state.textContent = pending ? strings.starting : strings.stopping;
+    timer.textContent = "";
+  } else if (status.held !== null) {
+    state.textContent = strings.held;
     timer.textContent = "";
   } else if (on) {
     state.textContent = eye ? strings.awake : strings.on;
@@ -165,7 +176,9 @@ function renderTimerRow(): void {
 function renderDetail(current: Status): void {
   let line: string | null = null;
   const next = current.nextChange ? strings.nextChange(current.nextChange.on, when(current.nextChange.at)) : null;
-  if (current.pausedUntil !== null) {
+  if (current.held !== null) {
+    line = strings.holds[current.held];
+  } else if (current.pausedUntil !== null) {
     line = strings.paused(shortWhen(current.pausedUntil));
   } else if (current.source !== null) {
     const source = strings.sources[current.source];
@@ -192,7 +205,7 @@ async function refreshStatus(): Promise<void> {
 
 power.addEventListener("click", async () => {
   if (pending !== null || !status) return;
-  const on = !status.on;
+  const on = !(status.on || status.held !== null);
   pending = on;
   renderStatus();
   try {
@@ -298,6 +311,11 @@ const restoreLastState = element<HTMLInputElement>("restore-last-state");
 const notifyOnChange = element<HTMLInputElement>("notify-on-change");
 const showTimers = element<HTMLInputElement>("show-timers");
 const trayClickToggles = element<HTMLInputElement>("tray-click-toggles");
+const onlyOnAc = element<HTMLInputElement>("only-on-ac");
+const minBattery = element<HTMLSelectElement>("min-battery");
+const whileRunning = element<HTMLInputElement>("while-running");
+const releaseWhenLocked = element<HTMLInputElement>("release-when-locked");
+const offAfterSleep = element<HTMLInputElement>("off-after-sleep");
 const shortcutRecord = element<HTMLButtonElement>("shortcut-record");
 const shortcutClear = element<HTMLButtonElement>("shortcut-clear");
 const settingsError = element("settings-error");
@@ -427,6 +445,11 @@ function renderSettings(): void {
   notifyOnChange.checked = settings.notifyOnChange;
   showTimers.checked = settings.showTimers;
   trayClickToggles.checked = settings.trayClickToggles;
+  onlyOnAc.checked = settings.onlyOnAc;
+  minBattery.value = settings.minBattery === null ? "" : String(settings.minBattery);
+  if (document.activeElement !== whileRunning) whileRunning.value = settings.whileRunning.join(", ");
+  releaseWhenLocked.checked = settings.releaseWhenLocked;
+  offAfterSleep.checked = settings.offAfterSleep;
   renderTimerRow();
 
   for (const row of settingsView.querySelectorAll<HTMLElement>("[data-needs-nudge]")) {
@@ -501,6 +524,22 @@ onToggle(restoreLastState, "restoreLastState");
 onToggle(notifyOnChange, "notifyOnChange");
 onToggle(showTimers, "showTimers");
 onToggle(trayClickToggles, "trayClickToggles");
+onToggle(onlyOnAc, "onlyOnAc");
+onToggle(releaseWhenLocked, "releaseWhenLocked");
+onToggle(offAfterSleep, "offAfterSleep");
+
+minBattery.add(new Option(strings.minBatteryOff, ""));
+for (const level of strings.minBatteryLevels) minBattery.add(new Option(`${level} %`, String(level)));
+minBattery.addEventListener("change", () => {
+  void update({ minBattery: minBattery.value === "" ? null : Number(minBattery.value) });
+});
+whileRunning.addEventListener("change", () => {
+  const names = whileRunning.value
+    .split(",")
+    .map((name) => name.trim())
+    .filter((name) => name !== "");
+  void update({ whileRunning: names });
+});
 
 nudgeKey.addEventListener("change", () => void update({ nudgeKey: nudgeKey.value }));
 
@@ -596,6 +635,17 @@ text("l-key", strings.nudgeKey);
 text("l-interval", strings.nudgeInterval);
 text("d-interval", strings.nudgeIntervalHint);
 text("u-interval", strings.seconds);
+text("h-conditions", strings.conditions);
+text("l-only-ac", strings.onlyOnAc);
+text("d-only-ac", strings.onlyOnAcHint);
+text("l-min-battery", strings.minBattery);
+text("d-min-battery", strings.minBatteryHint);
+text("l-while-running", strings.whileRunning);
+text("d-while-running", strings.whileRunningHint);
+text("l-locked", strings.releaseWhenLocked);
+text("d-locked", strings.releaseWhenLockedHint);
+text("l-after-sleep", strings.offAfterSleep);
+text("d-after-sleep", strings.offAfterSleepHint);
 text("h-system", strings.system);
 text("l-display", strings.keepDisplayOn);
 text("l-login", strings.launchAtLogin);
@@ -633,7 +683,7 @@ renderSettings();
 await listen<Status>("status-changed", (event) => {
   if (pending !== null) return;
   // A change made elsewhere makes the last failure old news.
-  if (event.payload.on !== status?.on) toggleError = null;
+  if (event.payload.on !== status?.on || event.payload.held !== status?.held) toggleError = null;
   applyStatus(event.payload);
 });
 
@@ -651,6 +701,6 @@ await refreshStatus();
 setInterval(() => {
   if (pending !== null) return;
   // ON: the elapsed time. OFF with a change planned: "tomorrow" becomes today.
-  if (status?.on) void refreshStatus();
+  if (status?.on || status?.held) void refreshStatus();
   else if (status?.nextChange) renderDetail(status);
 }, 1000);

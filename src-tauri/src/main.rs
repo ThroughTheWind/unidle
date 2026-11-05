@@ -72,6 +72,8 @@ struct StatusDto {
     paused_until: Option<i64>,
     /// ON without nudges, as `unidle on` asks (SPEC §13).
     power_only: bool,
+    /// Wanted ON, held OFF by a condition (SPEC §14).
+    held: Option<&'static str>,
 }
 
 #[derive(Clone, Serialize)]
@@ -109,6 +111,7 @@ impl From<Status> for StatusDto {
             }),
             paused_until: status.paused_until.map(Timestamp::as_millisecond),
             power_only: status.power_only,
+            held: status.held.map(unidle_core::Hold::name),
         }
     }
 }
@@ -152,8 +155,8 @@ pub(crate) fn set_active_with(
     let _ = app.emit(STATUS_EVENT, StatusDto::from(status));
     result.map_err(|error| error.to_string())?;
 
-    if state.settings().last_state_on != status.is_on() {
-        settings::record(app, |settings| settings.last_state_on = status.is_on());
+    if state.settings().last_state_on != status.is_wanted() {
+        settings::record(app, |settings| settings.last_state_on = status.is_wanted());
     }
     notify(app, &status);
     Ok(status)
@@ -230,7 +233,7 @@ pub(crate) fn start_timer_with(
 }
 
 pub(crate) fn toggle(app: &AppHandle) {
-    let on = app.state::<App>().controller().status().is_on();
+    let on = app.state::<App>().controller().status().is_wanted();
     let _ = set_active(app, !on);
 }
 
@@ -466,7 +469,7 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
                 std::thread::sleep(TRAY_REFRESH);
                 let status = refresher.state::<App>().controller().status();
                 // "tomorrow at 09:00" turns into "at 09:00" at midnight.
-                if status.is_on() || status.next_change.is_some() {
+                if status.is_wanted() || status.next_change.is_some() {
                     tray::refresh(&refresher, &status);
                 }
             }
