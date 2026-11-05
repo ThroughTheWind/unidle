@@ -48,3 +48,6 @@ jobs:
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
+      - name: PowerShell module
+        shell: pwsh
+        run: ./integrations/powershell/Unidle.Tests.ps1

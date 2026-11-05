@@ -24,6 +24,8 @@ unidle status          # add --json for scripts
 unidle off
 ```
 
+**Links and shortcuts.** `unidle://on`, `unidle://off`, `unidle://timer/30m` and `unidle://timer/18:00` do the same, always power-only. On a Mac, add an "Open URLs" action with one of them to a Shortcut. On Windows, `integrations/powershell/Unidle` is a PowerShell module: copy the `Unidle` folder into a folder on `$env:PSModulePath`, then `Enable-Unidle`, `Start-UnidleTimer -Until 18:00`, `Get-UnidleStatus` or `Disable-Unidle`.
+
 The `.deb` puts `unidle` on your `PATH`, and the AppImage takes the same commands. On Windows the binary is `unidle.exe` in the install folder, and on macOS it is `Unidle.app/Contents/MacOS/unidle`: add it to your `PATH` or link it. Details are in [SPEC §13](docs/SPEC.md#13-phase-4-command-line).
 
 ## On a work computer
@@ -61,6 +63,7 @@ npm run build
 | `crates/core/` | Simulation controller and platform adapter interface, with no UI dependency |
 | `src-tauri/` | Tauri app shell: window, commands and packaging |
 | `ui/` | Window UI in plain TypeScript, styled with the design tokens |
+| `integrations/` | Automation for other tools, such as the PowerShell module |
 | `site/` | One-page landing site, deployed to GitHub Pages by `.github/workflows/pages.yml` |
 | `docs/` | [Spec](docs/SPEC.md), [roadmap](docs/ROADMAP.md), [design system](docs/design/DESIGN_SYSTEM.md), [decisions](docs/decisions/README.md), [studies](docs/studies/) and [backlog](docs/backlog/BACKLOG.md) |
 | `.ai/`, `.claude/`, `AGENTS.md` | Development system installed by [rungs](https://github.com/ThroughTheWind/rungs). Not shipped in the app |

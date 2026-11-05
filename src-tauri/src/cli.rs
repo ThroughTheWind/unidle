@@ -34,10 +34,19 @@ const START_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Debug, PartialEq, Eq)]
 enum Command {
-    Send { request: Request, json: bool },
+    Send {
+        request: Request,
+        json: bool,
+    },
+    /// An `unidle://` link, opened by the OS (SPEC §13). Nothing to print:
+    /// no one is reading a terminal.
+    Link(Request),
     Help,
     Version,
 }
+
+/// The scheme of the links that drive Unidle, such as `unidle://on`.
+pub const SCHEME: &str = "unidle";
 
 /// Runs the command line when the first argument is one of its commands, and
 /// returns how to exit. `None` means start the app as usual, so `--hidden`
@@ -45,6 +54,12 @@ enum Command {
 pub fn run() -> Option<ExitCode> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let command = parse(&args)?;
+    if let Ok(Command::Link(request)) = &command {
+        return Some(match execute(request) {
+            Ok(response) if response.error.is_none() => ExitCode::SUCCESS,
+            _ => ExitCode::FAILURE,
+        });
+    }
     remote::attach_parent_console();
     Some(match command {
         Ok(Command::Help) => {
@@ -55,6 +70,7 @@ pub fn run() -> Option<ExitCode> {
             println!("unidle {}", env!("CARGO_PKG_VERSION"));
             ExitCode::SUCCESS
         }
+        Ok(Command::Link(_)) => unreachable!("handled above"),
         Ok(Command::Send { request, json }) => match execute(&request) {
             Ok(response) => print(&request, &response, json),
             Err(error) => {
@@ -74,6 +90,9 @@ fn parse(args: &[String]) -> Option<Result<Command, String>> {
     let word = match first.as_str() {
         "help" | "--help" | "-h" => return Some(Ok(Command::Help)),
         "--version" | "-V" => return Some(Ok(Command::Version)),
+        link if link.starts_with(&format!("{SCHEME}:")) => {
+            return Some(link_request(link).map(Command::Link));
+        }
         word @ ("on" | "off" | "status" | "timer") => word,
         // The app's own flags, and whatever the OS passes it.
         other if other.starts_with('-') => return None,
@@ -110,6 +129,29 @@ fn parse_command(word: &str, rest: &[String]) -> Result<Command, String> {
         (word, _) => return Err(format!("`{word}` takes no arguments")),
     };
     Ok(Command::Send { request, json })
+}
+
+/// `unidle://on`, `unidle://off`, `unidle://timer/30m` or
+/// `unidle://timer/18:00`. Always power-only: a link can come from a web
+/// page or anyone's shortcut, so it never starts input simulation, and it
+/// asks for nothing back.
+pub fn link_request(link: &str) -> Result<Request, String> {
+    let path = link
+        .strip_prefix(SCHEME)
+        .and_then(|rest| rest.strip_prefix(':'))
+        .ok_or_else(|| format!("not an {SCHEME}: link"))?;
+    let path = path.trim_start_matches('/').trim_end_matches('/');
+    let path = path.split(['?', '#']).next().unwrap_or_default();
+    let parts: Vec<&str> = path.split('/').collect();
+    match parts.as_slice() {
+        [command] if command.eq_ignore_ascii_case("on") => Ok(Request::On { nudge: false }),
+        [command] if command.eq_ignore_ascii_case("off") => Ok(Request::Off),
+        [command, length] if command.eq_ignore_ascii_case("timer") => {
+            // `%3A` is how some apps write the colon in 18:00.
+            timer_request(&length.replace("%3A", ":").replace("%3a", ":"), false)
+        }
+        _ => Err(format!("unknown link: {link}")),
+    }
 }
 
 /// `30m`, `2h`, `1h30m`, `45` (minutes), or a time like `18:00`.
@@ -307,6 +349,41 @@ mod tests {
         assert!(matches!(parsed(&["on", "--quiet"]), Some(Err(_))));
         assert_eq!(parsed(&["--version"]), Some(Ok(Command::Version)));
         assert_eq!(parsed(&["help"]), Some(Ok(Command::Help)));
+    }
+
+    #[test]
+    fn links_are_power_only_and_never_ask() {
+        let link = |text: &str| match parsed(&[text]) {
+            Some(Ok(Command::Link(request))) => Ok(request),
+            Some(Err(error)) => Err(error),
+            other => panic!("{text} gave {other:?}"),
+        };
+        assert_eq!(link("unidle://on"), Ok(Request::On { nudge: false }));
+        assert_eq!(link("unidle://ON/"), Ok(Request::On { nudge: false }));
+        assert_eq!(link("unidle:off"), Ok(Request::Off));
+        assert_eq!(
+            link("unidle://timer/1h30m"),
+            Ok(Request::Timer {
+                minutes: Some(90),
+                until: None,
+                nudge: false
+            })
+        );
+        assert_eq!(
+            link("unidle://timer/18%3A00"),
+            Ok(Request::Timer {
+                minutes: None,
+                until: Some("18:00".into()),
+                nudge: false
+            })
+        );
+        assert!(
+            link("unidle://on?nudge=1")
+                .is_ok_and(|request| request == Request::On { nudge: false })
+        );
+        assert!(link("unidle://status").is_err());
+        assert!(link("unidle://timer/99h").is_err());
+        assert!(link("unidle://quit").is_err());
     }
 
     #[test]

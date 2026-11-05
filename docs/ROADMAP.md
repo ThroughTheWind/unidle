@@ -98,7 +98,7 @@ Each phase ships a usable, released version. Phases are ordered by value and ris
 | Stop when the screen is locked or the user chooses Sleep | S | Must |
 | Calendar awareness: ON during meetings from a local `.ics` file or URL (opt-in network) | M | Could |
 | Full CLI: `unidle on|off|status|timer 30m|profile reader` | S | Should |
-| Local automation hooks: URL scheme (`unidle://on`), Apple Shortcuts, Windows PowerShell module | M | Could |
+| Local automation hooks: URL scheme (`unidle://on`), Apple Shortcuts, Windows PowerShell module ([SPEC §13](SPEC.md#13-phase-4-command-line)) | M | Could |
 | Run-on-event scripts: user commands run on ON/OFF (opt-in, local only) | S | Could |
 | Activity log: local history of sessions (start, stop, source, duration) with CSV export ([SPEC §15](SPEC.md#15-phase-4-activity-log)) | S | Could |
 

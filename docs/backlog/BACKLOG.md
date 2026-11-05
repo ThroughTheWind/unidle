@@ -6,7 +6,7 @@
 The board. One row per live work item, grouped by status. Items live in
 [`items/`](items/); finished work moves to [`archive/`](archive/).
 
-<!-- NEXT-ID: WI-019 -->
+<!-- NEXT-ID: WI-020 -->
 <!-- Claim from this marker and bump it on your own branch. `node .ai/rungs.mjs check` refuses a duplicate. -->
 
 ## In progress
@@ -36,6 +36,7 @@ The board. One row per live work item, grouped by status. Items live in
 | [WI-016](items/WI-016-activity-log.md) | Keep an opt-in local activity log of ON sessions, with CSV export | feature | `feature/WI-016-activity-log` |
 | [WI-017](items/WI-017-work-computers.md) | Warn once on a managed computer, and obey an IT policy that turns input simulation off | feature | `feature/WI-017-managed-device` |
 | [WI-018](items/WI-018-network-conditions.md) | Hold activity unless on a chosen Wi-Fi network or a VPN | feature | `feature/WI-018-network-conditions` |
+| [WI-019](items/WI-019-automation-hooks.md) | Drive Unidle from links, Apple Shortcuts and PowerShell | feature | `feature/WI-019-automation-hooks` |
 
 ## Planned
 

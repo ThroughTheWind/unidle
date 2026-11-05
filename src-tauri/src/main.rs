@@ -4,6 +4,7 @@
 mod activity_log;
 mod app_icon;
 mod cli;
+mod links;
 mod settings;
 mod strings;
 mod tray;
@@ -466,6 +467,8 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         eprintln!("command line: {error}");
     }
 
+    links::listen(&handle);
+
     // Keeps the tray's "ON for …" and next change lines current.
     let refresher = handle.clone();
     std::thread::Builder::new()
@@ -505,6 +508,10 @@ fn main() -> std::process::ExitCode {
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             window::show(app)
         }))
+        // `unidle://` links (SPEC §13). On Windows and Linux the OS starts
+        // the binary with the link, and `cli::run` above answers it; on
+        // macOS the running app gets it as an event.
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
         // Only for the schedule's import and export dialogs, opened from

@@ -196,6 +196,8 @@ Phase 4 of the [roadmap](ROADMAP.md). The same `unidle` binary takes commands fr
 - **CL-3 Output.** Text by default, the same lines as the tray; `--json` prints the window's status object. Exit status 0 on success, 1 when the app refuses or can't be reached, 2 for a usage error.
 - **CL-4 Local only.** Commands travel over a Unix socket in a folder private to the user (`$XDG_RUNTIME_DIR`, else a `0700` folder in the temp folder), or a named pipe that refuses remote clients on Windows. No network (NFR-2), and the app ignores anything that isn't one short request.
 - **CL-5 Arguments the app doesn't know as a command** (such as `--hidden` from the login item) start the app as before. An unknown word is a usage error, so a typo never opens a window.
+- **CL-6 Links.** The installers register the `unidle:` scheme: `unidle://on`, `unidle://off`, `unidle://timer/30m` and `unidle://timer/18:00` do what the commands do, for Apple Shortcuts ("Open URLs"), launchers and scripts. A link can come from a web page, so links are always power-only (no `--nudge`), never answer with the status, and need the OS's or browser's own prompt before they open. Windows and Linux start the binary with the link, which reaches the app like a command (CL-2); macOS hands it to the app.
+- **CL-7 PowerShell.** A module in `integrations/powershell` wraps the binary: `Enable-Unidle [-Nudge]`, `Disable-Unidle`, `Start-UnidleTimer -Duration | -Until [-Nudge]`, `Get-UnidleStatus`. Each returns the status object.
 
 ## 14. Phase 4: Conditions
 
