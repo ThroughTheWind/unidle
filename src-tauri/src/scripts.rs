@@ -74,11 +74,11 @@ fn shell(line: &str) -> Command {
     command
 }
 
-#[cfg(test)]
+// Windows' `cmd /C` path is only compiled by CI, not run.
+#[cfg(all(test, unix))]
 mod tests {
     use super::*;
 
-    #[cfg(unix)]
     #[test]
     fn the_shell_gets_the_line_and_the_event() {
         let dir = std::env::temp_dir().join(format!("unidle-scripts-{}", std::process::id()));
