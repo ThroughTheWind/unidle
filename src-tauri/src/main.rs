@@ -5,6 +5,7 @@ mod activity_log;
 mod app_icon;
 mod cli;
 mod links;
+mod scripts;
 mod settings;
 mod strings;
 mod tray;

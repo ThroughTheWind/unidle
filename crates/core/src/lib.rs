@@ -19,7 +19,9 @@ pub use adapter::{
 };
 pub use automation::NextChange;
 pub use conditions::{Conditions, Hold, Reading};
-pub use controller::{Controller, Event, EventKind, SessionSink, Source, Status};
+pub use controller::{
+    Change, ChangeSink, Controller, Event, EventKind, SessionSink, Source, Status,
+};
 pub use nudge::{DEFAULT_INTERVAL, MAX_INTERVAL, MIN_INTERVAL, NudgeConfig, NudgeMethod};
 pub use platform::{
     Environment, Input, ManagedSignal, Policy, PowerAssertion, PowerOptions, PowerSource,

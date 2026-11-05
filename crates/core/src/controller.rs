@@ -124,10 +124,22 @@ pub struct Controller<A: PlatformAdapter> {
     session: Option<Session>,
     /// Gets each session as it ends. None while the log is off.
     session_sink: Option<SessionSink>,
+    /// Told when the computer is actually kept awake or let go.
+    change_sink: Option<ChangeSink>,
 }
 
 /// Where finished sessions go: the app appends them to the activity log.
 pub type SessionSink = Box<dyn FnMut(Session) + Send>;
+
+/// The power assertion was taken or let go: ON, or OFF (including held by a
+/// condition, and quitting). The app runs the user's scripts on it (SPEC §17).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Change {
+    On(Source),
+    Off,
+}
+
+pub type ChangeSink = Box<dyn FnMut(Change) + Send>;
 
 impl<A: PlatformAdapter> Controller<A> {
     /// Starts OFF, whatever the adapter can do.
@@ -148,6 +160,7 @@ impl<A: PlatformAdapter> Controller<A> {
             events: VecDeque::with_capacity(EVENT_LOG_CAPACITY),
             session: None,
             session_sink: None,
+            change_sink: None,
         }
     }
 
@@ -240,7 +253,15 @@ impl<A: PlatformAdapter> Controller<A> {
         self.session_sink = sink;
     }
 
+    /// Every ON and OFF from now on goes to `sink`. `None` stops that.
+    pub fn set_change_sink(&mut self, sink: Option<ChangeSink>) {
+        self.change_sink = sink;
+    }
+
     fn open_session(&mut self, source: Source, at: Timestamp) {
+        if let Some(sink) = &mut self.change_sink {
+            sink(Change::On(source));
+        }
         self.session = Some(Session {
             start: at,
             end: at,
@@ -255,6 +276,9 @@ impl<A: PlatformAdapter> Controller<A> {
             session.end = at.max(session.start);
             if let Some(sink) = &mut self.session_sink {
                 sink(session);
+            }
+            if let Some(sink) = &mut self.change_sink {
+                sink(Change::Off);
             }
         }
     }
@@ -1215,6 +1239,41 @@ mod tests {
             let sessions = sessions.lock().unwrap();
             assert_eq!(sessions.len(), 1);
             assert_eq!(sessions[0].end, at("2026-11-05T10:10"));
+        }
+
+        #[test]
+        fn changes_follow_the_assertion() {
+            let adapter = FakeAdapter::default();
+            let env = adapter.env.clone();
+            let mut controller = Controller::new(adapter);
+            let changes: Arc<Mutex<Vec<Change>>> = Arc::default();
+            let sink = changes.clone();
+            controller.set_change_sink(Some(Box::new(move |change| {
+                sink.lock().unwrap().push(change);
+            })));
+            controller
+                .set_conditions(Conditions {
+                    release_when_locked: true,
+                    ..Conditions::new()
+                })
+                .unwrap();
+            controller.turn_on().unwrap();
+            // ON again changes nothing.
+            controller.turn_on().unwrap();
+            env.borrow_mut().locked = Some(true);
+            controller.tick(Instant::now());
+            env.borrow_mut().locked = Some(false);
+            controller.tick(Instant::now());
+            drop(controller);
+            assert_eq!(
+                *changes.lock().unwrap(),
+                [
+                    Change::On(Source::Manual),
+                    Change::Off,
+                    Change::On(Source::Manual),
+                    Change::Off
+                ]
+            );
         }
 
         #[test]

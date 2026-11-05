@@ -104,6 +104,10 @@ pub struct Settings {
     /// The work computer check ran once, at the first launch that showed the
     /// window (SPEC §16).
     pub managed_check_done: bool,
+    /// Run with the user's shell when it turns ON (SPEC §17). None: nothing.
+    pub on_command: Option<String>,
+    /// Run with the user's shell when it turns OFF.
+    pub off_command: Option<String>,
 }
 
 impl Default for Settings {
@@ -137,6 +141,8 @@ impl Default for Settings {
             off_after_sleep: true,
             activity_log: false,
             managed_check_done: false,
+            on_command: None,
+            off_command: None,
         }
     }
 }
@@ -249,6 +255,8 @@ impl Settings {
             off_after_sleep: read.bool("offAfterSleep", defaults.off_after_sleep),
             activity_log: read.bool("activityLog", defaults.activity_log),
             managed_check_done: read.bool("managedCheckDone", defaults.managed_check_done),
+            on_command: read.parse("onCommand", None, command),
+            off_command: read.parse("offCommand", None, command),
         };
         (settings, fallbacks)
     }
@@ -363,6 +371,16 @@ impl Reader<'_> {
     }
 }
 
+/// A script line: blank is none, and at most 1000 characters.
+fn command(value: &Value) -> Option<Option<String>> {
+    match value {
+        Value::Null => Some(None),
+        Value::String(text) if text.trim().is_empty() => Some(None),
+        Value::String(text) if text.len() <= 1000 => Some(Some(text.trim().to_string())),
+        _ => None,
+    }
+}
+
 /// A list of at most `max` app or network names, each 1 to 100 characters.
 fn name_list(value: &Value, max: usize) -> Option<Vec<String>> {
     let names = value.as_array()?;
@@ -462,6 +480,8 @@ mod tests {
             off_after_sleep: false,
             activity_log: true,
             managed_check_done: true,
+            on_command: Some("notify-send 'Unidle is on'".into()),
+            off_command: None,
         };
         let (read, fallbacks) = Settings::from_json(&settings.to_json());
         assert_eq!(read, settings);
@@ -584,6 +604,19 @@ mod tests {
         assert!(settings.off_after_sleep);
         assert!(!settings.activity_log);
         assert!(!settings.managed_check_done);
+        assert_eq!(settings.on_command, None);
+        assert_eq!(settings.off_command, None);
+    }
+
+    #[test]
+    fn a_blank_command_is_none() {
+        let (settings, fallbacks) =
+            Settings::from_json(r#"{"onCommand": "  ", "offCommand": " say off "}"#);
+        assert_eq!(settings.on_command, None);
+        assert_eq!(settings.off_command.as_deref(), Some("say off"));
+        assert!(fallbacks.is_empty());
+        let (_, fallbacks) = Settings::from_json(r#"{"onCommand": 3}"#);
+        assert_eq!(fallbacks, ["onCommand"]);
     }
 
     #[test]

@@ -711,3 +711,13 @@ input[type="date"]:invalid::-webkit-datetime-edit {
   flex-direction: column;
   gap: var(--space-2);
 }
+
+/* ── Scripts (SPEC §17) ────────────────────────────────────────────────── */
+
+.group-hint {
+  margin: 0;
+}
+
+.input.mono {
+  font-family: var(--font-mono);
+}

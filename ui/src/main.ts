@@ -56,6 +56,8 @@ interface Settings extends ScheduleSettings {
   releaseWhenLocked: boolean;
   offAfterSleep: boolean;
   activityLog: boolean;
+  onCommand: string | null;
+  offCommand: string | null;
 }
 
 /** Mirrors `APP_ICONS` in crates/core/src/settings.rs. The first is the default. */
@@ -322,6 +324,8 @@ const onlyOnVpn = element<HTMLInputElement>("only-on-vpn");
 const releaseWhenLocked = element<HTMLInputElement>("release-when-locked");
 const offAfterSleep = element<HTMLInputElement>("off-after-sleep");
 const activityLog = element<HTMLInputElement>("activity-log");
+const onCommand = element<HTMLInputElement>("on-command");
+const offCommand = element<HTMLInputElement>("off-command");
 const shortcutRecord = element<HTMLButtonElement>("shortcut-record");
 const shortcutClear = element<HTMLButtonElement>("shortcut-clear");
 const settingsError = element("settings-error");
@@ -459,6 +463,8 @@ function renderSettings(): void {
   releaseWhenLocked.checked = settings.releaseWhenLocked;
   offAfterSleep.checked = settings.offAfterSleep;
   activityLog.checked = settings.activityLog;
+  if (document.activeElement !== onCommand) onCommand.value = settings.onCommand ?? "";
+  if (document.activeElement !== offCommand) offCommand.value = settings.offCommand ?? "";
   renderTimerRow();
 
   for (const row of settingsView.querySelectorAll<HTMLElement>("[data-needs-nudge]")) {
@@ -538,6 +544,18 @@ onToggle(releaseWhenLocked, "releaseWhenLocked");
 onToggle(onlyOnVpn, "onlyOnVpn");
 onToggle(offAfterSleep, "offAfterSleep");
 onToggle(activityLog, "activityLog");
+
+// Run-on-event scripts (SPEC §17): saved when the field is left, blank is none.
+text("h-scripts", strings.scripts);
+text("d-scripts", strings.scriptsHint);
+text("l-on-command", strings.onCommand);
+text("l-off-command", strings.offCommand);
+for (const [input, field] of [
+  [onCommand, "onCommand"],
+  [offCommand, "offCommand"],
+] as const) {
+  input.addEventListener("change", () => void update({ [field]: input.value.trim() || null }));
+}
 
 // The activity log (SPEC §15). The file stays on this computer; the Rust side
 // opens the save dialog.

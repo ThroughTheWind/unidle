@@ -75,6 +75,11 @@ pub fn apply_to_controller(app: &AppHandle, settings: &Settings) -> Result<(), S
         power.and(schedule).and(conditions)
     };
     crate::activity_log::apply(app, settings.activity_log);
+    crate::scripts::apply(
+        app,
+        settings.on_command.clone(),
+        settings.off_command.clone(),
+    );
     state.ticker.wake();
     result
 }

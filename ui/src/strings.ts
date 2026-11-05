@@ -156,6 +156,11 @@ export const strings = {
   clearActivity: "Clear",
   clearActivityConfirm: "Clear all?",
   cleared: "Cleared",
+  scripts: "Scripts",
+  scriptsHint:
+    "A command for your shell, run as you, each time it turns on or off. It gets UNIDLE_EVENT and UNIDLE_SOURCE. Leave empty for none.",
+  onCommand: "When it turns on",
+  offCommand: "When it turns off",
   system: "System",
   keepDisplayOn: "Keep the display on",
   launchAtLogin: "Launch at login",

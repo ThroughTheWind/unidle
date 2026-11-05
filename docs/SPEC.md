@@ -236,3 +236,12 @@ Phase 4 of the [roadmap](ROADMAP.md). On a computer an organization manages, its
 - **WC-2 The notice**, when a signal is found: "This computer appears to be managed by an organization. Its IT team can likely see the apps you install and may monitor activity. Check your organization's policy before using Unidle here." with **Use power-only mode** (turns Simulate input off), **Continue**, and **Learn more** (the README's "On a work computer"). It never blocks.
 - **WC-3 No reassurance.** Finding nothing shows nothing at launch; from Settings it says "No sign found. A work computer can still have its own rules." There is never a "safe" verdict or score.
 - **WC-4 IT policy.** `DisableInputSimulation` turns input nudges off whatever the settings say, read once at launch: a `DWORD` of 1 under `HKLM` or `HKCU\SOFTWARE\Policies\Unidle` on Windows, a managed (forced) preference for `com.throughthewind.unidle` on macOS, `{"disableInputSimulation": true}` in `/etc/unidle/policy.json` on Linux. The power assertion still works. The window says "Your organization turned off input simulation", and `unidle status` says "Input nudges: off by your organization's policy". To block Unidle entirely, IT uses its application control (AppLocker, WDAC, Santa), which does that better than an app could.
+
+## 17. Phase 4: Scripts
+
+Phase 4 of the [roadmap](ROADMAP.md). A command the user writes runs when Unidle turns ON or OFF, for example to set a chat status, pause a sync, or log to their own tool.
+
+- **SR-1 Opt-in.** Settings → Scripts, "When it turns on" and "When it turns off". Empty, the default, runs nothing.
+- **SR-2 When.** ON is when the power assertion is taken, whatever turned it on; OFF is when it's let go: turned off, paused by a condition (§14), after sleep, or quitting. Turning ON while already ON runs nothing.
+- **SR-3 How.** With the user's shell (`/bin/sh -c`, or `cmd /C` with no window on Windows), as the user, with `UNIDLE_EVENT` (`on` or `off`) and `UNIDLE_SOURCE` (`manual`, `timer` or `schedule` on ON). Unidle doesn't wait for it, show its output, or stop it; a failure is only logged.
+- **SR-4 Local.** Unidle runs exactly the line in the settings file, which only the user and the window can change; nothing else can set it, and the app adds no network of its own (NFR-2).
