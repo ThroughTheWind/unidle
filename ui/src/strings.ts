@@ -44,13 +44,14 @@ export const strings = {
     manual: "Manual",
     timer: "Timer",
     schedule: "Scheduled",
+    calendar: "Meeting",
   },
   /** "OFF at 18:00", "ON tomorrow at 09:00", "ON Mon at 09:00", "ON Nov 16 at 09:00". */
   nextChange: (on: boolean, when: string) => `${on ? "ON" : "OFF"} ${when}`,
   today: (time: string) => `at ${time}`,
   tomorrow: (time: string) => `tomorrow at ${time}`,
   onDay: (day: string, time: string) => `${day} at ${time}`,
-  paused: (until: string) => `Schedule paused until ${until}`,
+  paused: (until: string, byMeeting: boolean) => `${byMeeting ? "Meeting" : "Schedule"} paused until ${until}`,
   // Held by a condition (SPEC §14): wanted ON, paused for now.
   held: "Paused",
   holds: {
@@ -156,6 +157,16 @@ export const strings = {
   clearActivity: "Clear",
   clearActivityConfirm: "Clear all?",
   cleared: "Cleared",
+  calendar: "Calendar",
+  calendarHint:
+    "Turns on during the meetings in a calendar file on this computer, such as one your calendar app exports. Only read, never sent anywhere. All-day events and free time don't count.",
+  calendarFile: "Calendar file",
+  calendarNone: "None",
+  /** "work.ics · 12 events" */
+  calendarRead: (name: string, events: number) => `${name} · ${events} ${events === 1 ? "event" : "events"}`,
+  calendarError: (name: string, error: string) => `${name} · Can't read it: ${error}`,
+  chooseCalendar: "Choose…",
+  removeCalendar: "Remove",
   scripts: "Scripts",
   scriptsHint:
     "A command for your shell, run as you, each time it turns on or off. It gets UNIDLE_EVENT and UNIDLE_SOURCE. Leave empty for none.",

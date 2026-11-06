@@ -152,7 +152,7 @@ Phase 2 of the [roadmap](ROADMAP.md). The toggle is one input among several: the
 - **SC-1 Schedules:** one or more weekly time windows (e.g. Mon to Fri, 09:00 to 18:00) during which simulation is automatically ON. Times are local wall-clock times. A window whose end is at or before its start runs overnight into the next day. Overlapping windows merge.
 - **SC-2 Skip days:** dates on which the schedule doesn't run (holidays). A window that starts on a skip day is skipped.
 - **SC-3 Timers:** "ON for 15 min / 30 min / 1 h / 2 h / until HH:MM" quick actions from the tray menu and the window. "Until" a time already past today means tomorrow.
-- **SC-4 Source indicator:** the state shows its source, Manual, Timer or Scheduled, and the next change ("Timer: OFF at 18:00", "Scheduled: ON at 09:00").
+- **SC-4 Source indicator:** the state shows its source, Manual, Timer, Scheduled or Meeting (§18), and the next change ("Timer: OFF at 18:00", "Scheduled: ON at 09:00").
 - **SC-5 Precedence:**
   - The most recent manual action or timer wins over the schedule. A manual action cancels a running timer, and a new timer replaces a manual action.
   - A manual ON or OFF that differs from the schedule holds until the schedule next changes. Turning OFF during a window pauses it until the window ends. Turning ON outside one keeps it ON until the next window starts, and the schedule takes over from there. A manual action that matches the schedule (ON again during a paused window) resumes following it.
@@ -225,7 +225,7 @@ Phase 4 of the [roadmap](ROADMAP.md). An opt-in, local record of when Unidle kep
 
 - **AL-1 Opt-in.** Off by default. Settings → Activity log → "Keep an activity log". Turning it off stops adding rows and keeps the ones already there.
 - **AL-2 One row per ON session**, written when it ends: turned OFF, paused by a condition (§14), the computer slept (CO-3, ending when it fell asleep, not when it woke), or the app quit. A session cut short by a crash, or by the process being killed, has no row. A timer that ends inside a schedule window continues the same session.
-- **AL-3 Columns:** `start,end,duration_seconds,source,power_only,nudges`. Times are local with their UTC offset (`2026-11-05T09:00:00+01:00`); `source` is `manual`, `timer` or `schedule`, the one it started with; `power_only` is `true` when any of it ran without nudges by request (§13); `nudges` counts the ones sent. Nothing about what the user did, typed or ran is written (NFR-2).
+- **AL-3 Columns:** `start,end,duration_seconds,source,power_only,nudges`. Times are local with their UTC offset (`2026-11-05T09:00:00+01:00`); `source` is `manual`, `timer`, `schedule` or `calendar`, the one it started with; `power_only` is `true` when any of it ran without nudges by request (§13); `nudges` counts the ones sent. Nothing about what the user did, typed or ran is written (NFR-2).
 - **AL-4 Stays on this computer**: `activity-log.csv` in the app's data directory, at most 5,000 rows, the oldest dropped first. "Export…" saves a copy where the user picks; "Clear" (clicked twice) deletes it.
 
 ## 16. Phase 4: Work computers
@@ -243,5 +243,15 @@ Phase 4 of the [roadmap](ROADMAP.md). A command the user writes runs when Unidle
 
 - **SR-1 Opt-in.** Settings → Scripts, "When it turns on" and "When it turns off". Empty, the default, runs nothing.
 - **SR-2 When.** ON is when the power assertion is taken, whatever turned it on; OFF is when it's let go: turned off, paused by a condition (§14), after sleep, or quitting. Turning ON while already ON runs nothing.
-- **SR-3 How.** With the user's shell (`/bin/sh -c`, or `cmd /C` with no window on Windows), as the user, with `UNIDLE_EVENT` (`on` or `off`) and `UNIDLE_SOURCE` (`manual`, `timer` or `schedule` on ON). Unidle doesn't wait for it, show its output, or stop it; a failure is only logged.
+- **SR-3 How.** With the user's shell (`/bin/sh -c`, or `cmd /C` with no window on Windows), as the user, with `UNIDLE_EVENT` (`on` or `off`) and `UNIDLE_SOURCE` (`manual`, `timer`, `schedule` or `calendar` on ON). Unidle doesn't wait for it, show its output, or stop it; a failure is only logged.
 - **SR-4 Local.** Unidle runs exactly the line in the settings file, which only the user and the window can change; nothing else can set it, and the app adds no network of its own (NFR-2).
+
+## 18. Phase 4: Calendar
+
+Phase 4 of the [roadmap](ROADMAP.md). Unidle turns ON during the meetings in a calendar file, for example so the screen stays on through a call. The file is local: Unidle never fetches a calendar (NFR-2). To follow an online calendar, export or sync it to a file with the calendar app.
+
+- **CA-1 Opt-in.** Settings → Calendar → Choose… picks an iCalendar (`.ics`) file; Remove stops following it. No file, the default, plans nothing.
+- **CA-2 Meetings.** An event turns it ON from its start to its end, like a schedule window (§10): the source is Meeting (`calendar`), a manual OFF pauses the meeting until it ends ("Meeting paused until 15:00"), and a manual ON or a timer wins over it. When a schedule window and a meeting overlap, the window names the source and it stays ON until both end.
+- **CA-3 What counts.** Events with a start time and an end or a duration. All-day events, events marked free (`TRANSP:TRANSPARENT`) and cancelled ones don't count. Recurring events follow `RRULE` (daily, weekly, monthly and yearly, with `INTERVAL`, `COUNT`, `UNTIL`, `BYDAY` and `BYMONTHDAY`), `EXDATE` and moved occurrences (`RECURRENCE-ID`); a rule with parts beyond these keeps only its first meeting. Times follow their `TZID` when it names an IANA zone, and the computer's own zone otherwise. Nothing the reader can't make sense of turns it ON.
+- **CA-4 Kept current.** The file is checked every minute and read again when it changes; the meetings from a day back to two weeks ahead are worked out again every hour. A file that can't be read plans nothing, and Settings says why.
+- **CA-5 Private.** Only the times are kept, in memory. Titles, places and attendees are skipped and never stored, logged or shown.

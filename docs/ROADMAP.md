@@ -96,7 +96,7 @@ Each phase ships a usable, released version. Phases are ordered by value and ris
 | Conditions: only while a given app or process is running (e.g. a video call app, a render) | M | Should |
 | Conditions: only on a given Wi-Fi network or when a VPN is connected ([SPEC §14](SPEC.md#14-phase-4-conditions)) | M | Could |
 | Stop when the screen is locked or the user chooses Sleep | S | Must |
-| Calendar awareness: ON during meetings from a local `.ics` file or URL (opt-in network) | M | Could |
+| Calendar awareness: ON during meetings from a local `.ics` file, with no network ([SPEC §18](SPEC.md#18-phase-4-calendar)) | M | Could |
 | Full CLI: `unidle on|off|status|timer 30m|profile reader` | S | Should |
 | Local automation hooks: URL scheme (`unidle://on`), Apple Shortcuts, Windows PowerShell module ([SPEC §13](SPEC.md#13-phase-4-command-line)) | M | Could |
 | Run-on-event scripts: user commands run on ON/OFF (opt-in, local only) ([SPEC §17](SPEC.md#17-phase-4-scripts)) | S | Could |
@@ -140,5 +140,5 @@ Ideas worth keeping that don't fit a phase yet:
 ## Open questions
 
 1. Should printable typing simulation ship at all, or stay a plugin outside the core app?
-2. Is calendar integration worth adding network access for, even as opt-in?
+2. ~~Is calendar integration worth adding network access for, even as opt-in?~~ No (2026-11-06): calendar awareness reads a local `.ics` file only (SPEC §18).
 3. Which package managers matter most to you for the first release?

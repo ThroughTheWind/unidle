@@ -56,6 +56,7 @@ pub const fn source_name(source: Source) -> &'static str {
         Source::Manual => "manual",
         Source::Timer => "timer",
         Source::Schedule => "schedule",
+        Source::Calendar => "calendar",
     }
 }
 

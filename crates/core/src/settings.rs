@@ -108,6 +108,9 @@ pub struct Settings {
     pub on_command: Option<String>,
     /// Run with the user's shell when it turns OFF.
     pub off_command: Option<String>,
+    /// A local `.ics` file whose meetings turn it ON (SPEC §18). None:
+    /// calendar awareness is off.
+    pub calendar_file: Option<String>,
 }
 
 impl Default for Settings {
@@ -143,6 +146,7 @@ impl Default for Settings {
             managed_check_done: false,
             on_command: None,
             off_command: None,
+            calendar_file: None,
         }
     }
 }
@@ -257,6 +261,7 @@ impl Settings {
             managed_check_done: read.bool("managedCheckDone", defaults.managed_check_done),
             on_command: read.parse("onCommand", None, command),
             off_command: read.parse("offCommand", None, command),
+            calendar_file: read.parse("calendarFile", None, file_path),
         };
         (settings, fallbacks)
     }
@@ -381,6 +386,16 @@ fn command(value: &Value) -> Option<Option<String>> {
     }
 }
 
+/// A file path, or nothing when blank.
+fn file_path(value: &Value) -> Option<Option<String>> {
+    match value {
+        Value::Null => Some(None),
+        Value::String(text) if text.trim().is_empty() => Some(None),
+        Value::String(text) if text.len() <= 4096 => Some(Some(text.trim().to_string())),
+        _ => None,
+    }
+}
+
 /// A list of at most `max` app or network names, each 1 to 100 characters.
 fn name_list(value: &Value, max: usize) -> Option<Vec<String>> {
     let names = value.as_array()?;
@@ -482,6 +497,7 @@ mod tests {
             managed_check_done: true,
             on_command: Some("notify-send 'Unidle is on'".into()),
             off_command: None,
+            calendar_file: Some("/home/me/work.ics".into()),
         };
         let (read, fallbacks) = Settings::from_json(&settings.to_json());
         assert_eq!(read, settings);
@@ -606,6 +622,7 @@ mod tests {
         assert!(!settings.managed_check_done);
         assert_eq!(settings.on_command, None);
         assert_eq!(settings.off_command, None);
+        assert_eq!(settings.calendar_file, None);
     }
 
     #[test]
@@ -617,6 +634,8 @@ mod tests {
         assert!(fallbacks.is_empty());
         let (_, fallbacks) = Settings::from_json(r#"{"onCommand": 3}"#);
         assert_eq!(fallbacks, ["onCommand"]);
+        let (settings, _) = Settings::from_json(r#"{"calendarFile": " "}"#);
+        assert_eq!(settings.calendar_file, None);
     }
 
     #[test]

@@ -16,14 +16,17 @@ interface Status {
   nudging: boolean;
   inputUnavailable: "needsPermission" | "wayland" | "noDisplay" | "unsupported" | "policy" | null;
   /** Who turned it on (SPEC SC-4). */
-  source: "manual" | "timer" | "schedule" | null;
-  /** The next time a timer or the schedule turns it ON or OFF; ms since the epoch. */
-  nextChange: { at: number; on: boolean } | null;
-  /** While a manual OFF pauses a schedule window: when the window ends. */
+  source: Source | null;
+  /** The next time a timer, the schedule or a meeting turns it ON or OFF; ms since the epoch. */
+  nextChange: { at: number; on: boolean; source: Source | null } | null;
+  /** While a manual OFF pauses a schedule window or a meeting: when it ends. */
   pausedUntil: number | null;
+  pausedBy: "schedule" | "calendar" | null;
   /** Wanted ON, but a condition holds it OFF for now (SPEC §14). */
   held: "locked" | "onBattery" | "lowBattery" | "appNotRunning" | "notOnNetwork" | "noVpn" | null;
 }
+
+type Source = "manual" | "timer" | "schedule" | "calendar";
 
 type NudgeMethod = "pointer" | "keystroke" | "both";
 
@@ -58,6 +61,7 @@ interface Settings extends ScheduleSettings {
   activityLog: boolean;
   onCommand: string | null;
   offCommand: string | null;
+  calendarFile: string | null;
 }
 
 /** Mirrors `APP_ICONS` in crates/core/src/settings.rs. The first is the default. */
@@ -184,13 +188,13 @@ function renderDetail(current: Status): void {
   if (current.held !== null) {
     line = strings.holds[current.held];
   } else if (current.pausedUntil !== null) {
-    line = strings.paused(shortWhen(current.pausedUntil));
+    line = strings.paused(shortWhen(current.pausedUntil), current.pausedBy === "calendar");
   } else if (current.source !== null) {
     const source = strings.sources[current.source];
     line = next ? `${source} · ${next}` : source;
   } else if (next) {
-    // OFF: only the schedule plans an ON.
-    line = `${strings.sources.schedule} · ${next}`;
+    // OFF: only the schedule and the calendar plan an ON.
+    line = `${strings.sources[current.nextChange?.source ?? "schedule"]} · ${next}`;
   }
   detail.hidden = line === null;
   // Blue is for scheduling (design system), so a plain manual ON stays muted.
@@ -465,6 +469,7 @@ function renderSettings(): void {
   activityLog.checked = settings.activityLog;
   if (document.activeElement !== onCommand) onCommand.value = settings.onCommand ?? "";
   if (document.activeElement !== offCommand) offCommand.value = settings.offCommand ?? "";
+  void renderCalendar(settings.calendarFile);
   renderTimerRow();
 
   for (const row of settingsView.querySelectorAll<HTMLElement>("[data-needs-nudge]")) {
@@ -556,6 +561,53 @@ for (const [input, field] of [
 ] as const) {
   input.addEventListener("change", () => void update({ [field]: input.value.trim() || null }));
 }
+
+// Calendar awareness (SPEC §18): a local .ics file, picked in a dialog the
+// Rust side opens and read there. Nothing is fetched.
+text("h-calendar", strings.calendar);
+text("d-calendar", strings.calendarHint);
+text("l-calendar-file", strings.calendarFile);
+const calendarChoose = element<HTMLButtonElement>("calendar-choose");
+const calendarRemove = element<HTMLButtonElement>("calendar-remove");
+const calendarFileHint = element<HTMLElement>("d-calendar-file");
+calendarChoose.textContent = strings.chooseCalendar;
+calendarRemove.textContent = strings.removeCalendar;
+
+async function renderCalendar(file: string | null): Promise<void> {
+  calendarRemove.hidden = file === null;
+  if (file === null) {
+    calendarFileHint.textContent = strings.calendarNone;
+    calendarFileHint.title = "";
+    return;
+  }
+  const name = file.split(/[\\/]/).pop() ?? file;
+  calendarFileHint.title = file;
+  try {
+    const info = await invoke<{ events: number | null; error: string | null }>("calendar_info");
+    calendarFileHint.textContent =
+      info.error !== null
+        ? strings.calendarError(name, info.error)
+        : info.events !== null
+          ? strings.calendarRead(name, info.events)
+          : name;
+  } catch {
+    calendarFileHint.textContent = name;
+  }
+}
+
+calendarChoose.addEventListener("click", async () => {
+  try {
+    const chosen = await invoke<Settings | null>("choose_calendar_file");
+    if (chosen) {
+      settings = chosen;
+      showSettingsError(null);
+      renderSettings();
+    }
+  } catch (error) {
+    showSettingsError(message(error));
+  }
+});
+calendarRemove.addEventListener("click", () => void update({ calendarFile: null }));
 
 // The activity log (SPEC §15). The file stays on this computer; the Rust side
 // opens the save dialog.

@@ -3,6 +3,7 @@
 
 mod activity_log;
 mod app_icon;
+mod calendar;
 mod cli;
 mod links;
 mod scripts;
@@ -21,8 +22,9 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, RunEvent, State, WindowEvent};
 use tauri_plugin_global_shortcut::ShortcutState;
 use tauri_plugin_notification::NotificationExt as _;
+use unidle_core::activity::source_name;
 use unidle_core::{
-    Controller, InputUnavailable, NudgeKey, Settings, Source, Status, SystemAdapter, Ticker,
+    Controller, InputUnavailable, NudgeKey, Settings, Status, SystemAdapter, Ticker,
 };
 
 /// Emitted to the window whenever the state changes outside it, such as
@@ -69,11 +71,15 @@ struct StatusDto {
     nudging: bool,
     /// Why nudges cannot be sent, if they cannot (SPEC PB-2).
     input_unavailable: Option<&'static str>,
-    /// `"manual"`, `"timer"` or `"schedule"` while ON (SPEC SC-4).
+    /// `"manual"`, `"timer"`, `"schedule"` or `"calendar"` while ON (SPEC
+    /// SC-4, §18).
     source: Option<&'static str>,
     next_change: Option<NextChangeDto>,
-    /// Milliseconds since the Unix epoch, while a manual OFF pauses a window.
+    /// Milliseconds since the Unix epoch, while a manual OFF pauses a window
+    /// or a meeting.
     paused_until: Option<i64>,
+    /// `"schedule"` or `"calendar"`: what `paused_until` paused.
+    paused_by: Option<&'static str>,
     /// ON without nudges, as `unidle on` asks (SPEC §13).
     power_only: bool,
     /// Wanted ON, held OFF by a condition (SPEC §14).
@@ -86,6 +92,8 @@ struct NextChangeDto {
     /// Milliseconds since the Unix epoch, for `new Date()`.
     at: i64,
     on: bool,
+    /// What turns it ON then, as in `source`.
+    source: Option<&'static str>,
 }
 
 impl From<Status> for StatusDto {
@@ -105,16 +113,14 @@ impl From<Status> for StatusDto {
                     InputUnavailable::Unsupported => "unsupported",
                     InputUnavailable::Policy => "policy",
                 }),
-            source: status.source.map(|source| match source {
-                Source::Manual => "manual",
-                Source::Timer => "timer",
-                Source::Schedule => "schedule",
-            }),
+            source: status.source.map(source_name),
             next_change: status.next_change.map(|change| NextChangeDto {
                 at: change.at.as_millisecond(),
                 on: change.on,
+                source: change.source.map(source_name),
             }),
             paused_until: status.paused_until.map(Timestamp::as_millisecond),
+            paused_by: status.paused_by.map(source_name),
             power_only: status.power_only,
             held: status.held.map(unidle_core::Hold::name),
         }
@@ -186,7 +192,7 @@ fn notify(app: &AppHandle, status: &Status) {
 
 /// A timer or the schedule changed the state on its own: every surface
 /// catches up.
-fn on_automatic_change(app: &AppHandle) {
+pub(crate) fn on_automatic_change(app: &AppHandle) {
     let status = app.state::<App>().controller().status();
     tray::refresh(app, &status);
     let _ = app.emit(STATUS_EVENT, StatusDto::from(status));
@@ -451,6 +457,7 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     }
     // The tray was built before the settings were read.
     app_icon::apply(&handle);
+    calendar::start(&handle);
     tray::apply_click(&handle, loaded.tray_click_toggles);
     tray::refresh(&handle, &app.state::<App>().controller().status());
     if loaded.start_on() {
@@ -556,6 +563,8 @@ fn main() -> std::process::ExitCode {
             import_schedule,
             activity_log::export_activity_log,
             activity_log::clear_activity_log,
+            calendar::choose_calendar_file,
+            calendar::calendar_info,
             work_computer::take_managed_notice,
             work_computer::check_managed,
             get_settings,

@@ -4,6 +4,7 @@
 pub mod activity;
 mod adapter;
 mod automation;
+pub mod calendar;
 mod conditions;
 mod controller;
 mod nudge;

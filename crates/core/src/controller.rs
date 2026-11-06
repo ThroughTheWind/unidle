@@ -10,7 +10,7 @@ use crate::conditions::{Conditions, Hold, Reading};
 use crate::nudge::{Due, NudgeConfig, Planner};
 use crate::schedule::Schedule;
 
-/// Who turned simulation on (SPEC §10, ROADMAP Phase 2).
+/// Who turned simulation on (SPEC §10, §18).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Source {
     Manual,
@@ -18,6 +18,8 @@ pub enum Source {
     Timer,
     /// A weekly schedule window.
     Schedule,
+    /// A meeting in the calendar file (SPEC §18).
+    Calendar,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -42,8 +44,11 @@ pub struct Status {
     pub nudging: bool,
     /// The next time the app turns itself ON or OFF, if it will.
     pub next_change: Option<NextChange>,
-    /// When a manual OFF paused a schedule window, the time the window ends.
+    /// When a manual OFF paused a schedule window or a meeting, the time it
+    /// ends.
     pub paused_until: Option<Timestamp>,
+    /// What [`Self::paused_until`] paused: the schedule or the calendar.
+    pub paused_by: Option<Source>,
     /// This ON was asked for without nudges, such as by `unidle on` (SPEC
     /// §13): the power assertion only, whatever the settings say.
     pub power_only: bool,
@@ -236,6 +241,29 @@ impl<A: PlatformAdapter> Controller<A> {
         self.automation.schedule()
     }
 
+    pub fn meetings(&self) -> &[(Timestamp, Timestamp)] {
+        self.automation.meetings()
+    }
+
+    /// The calendar's busy times (SPEC §18). Takes effect at once, like
+    /// [`Self::set_schedule`].
+    pub fn set_meetings(
+        &mut self,
+        meetings: Vec<(Timestamp, Timestamp)>,
+    ) -> Result<(), AdapterError> {
+        self.set_meetings_at(meetings, &Zoned::now())
+    }
+
+    pub fn set_meetings_at(
+        &mut self,
+        meetings: Vec<(Timestamp, Timestamp)>,
+        now: &Zoned,
+    ) -> Result<(), AdapterError> {
+        self.automation
+            .set_meetings(meetings, now.timestamp(), now.time_zone());
+        self.sync(now)
+    }
+
     /// Takes effect at once: entering or leaving a window turns ON or OFF.
     pub fn set_schedule(&mut self, schedule: Schedule) -> Result<(), AdapterError> {
         self.set_schedule_at(schedule, &Zoned::now())
@@ -411,13 +439,15 @@ impl<A: PlatformAdapter> Controller<A> {
         };
         let capabilities = self.adapter.capabilities();
         let (at, tz) = (now.timestamp(), now.time_zone());
+        let paused = self.automation.paused(at, tz);
         Status {
             source,
             elapsed,
             capabilities,
             nudging: source.is_some() && self.nudges_possible(capabilities),
             next_change: self.automation.next_change(at, tz),
-            paused_until: self.automation.paused_until(at, tz),
+            paused_until: paused.map(|(until, _)| until),
+            paused_by: paused.map(|(_, source)| source),
             power_only: source.is_some() && self.power_only,
             held,
         }
@@ -1297,6 +1327,33 @@ mod tests {
         }
 
         #[test]
+        fn a_meeting_turns_on_and_off_on_tick() {
+            let adapter = FakeAdapter::default();
+            let mut controller = Controller::new(adapter);
+            controller
+                .set_meetings_at(
+                    vec![(at("2026-11-02T14:00"), at("2026-11-02T15:00"))],
+                    &wall("2026-11-02T13:00"),
+                )
+                .unwrap();
+            assert!(!controller.status().is_on());
+            let wait = controller.tick_at(Instant::now(), &wall("2026-11-02T13:59:58"));
+            assert!(wait <= Duration::from_secs(3), "{wait:?}");
+
+            controller.tick_at(Instant::now(), &wall("2026-11-02T14:00"));
+            let status = controller.status_at(&wall("2026-11-02T14:00"));
+            assert_eq!(status.source, Some(Source::Calendar));
+
+            // OFF by hand: the meeting is paused until it ends.
+            controller
+                .set_manual_with(false, false, &wall("2026-11-02T14:10"))
+                .unwrap();
+            let status = controller.status_at(&wall("2026-11-02T14:10"));
+            assert_eq!(status.paused_until, Some(at("2026-11-02T15:00")));
+            assert_eq!(status.paused_by, Some(Source::Calendar));
+        }
+
+        #[test]
         fn a_schedule_turns_on_and_off_on_tick() {
             let adapter = FakeAdapter::default();
             let calls = adapter.calls.clone();
@@ -1320,7 +1377,8 @@ mod tests {
                 status.next_change,
                 Some(NextChange {
                     at: at("2026-11-02T18:00"),
-                    on: false
+                    on: false,
+                    source: None,
                 })
             );
 
@@ -1369,7 +1427,8 @@ mod tests {
                 status.next_change,
                 Some(NextChange {
                     at: at("2026-11-02T20:30"),
-                    on: false
+                    on: false,
+                    source: None,
                 })
             );
 
