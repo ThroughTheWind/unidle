@@ -4,7 +4,7 @@
 use std::time::Duration;
 
 use jiff::{Timestamp, ToSpan as _, Zoned};
-use unidle_core::{Hold, Source, Status};
+use unidle_core::{Hold, InputUnavailable, Source, Status};
 
 #[cfg(target_os = "macos")]
 pub const APP_NAME: &str = "Unidle";
@@ -32,6 +32,11 @@ pub const TIMERS: [(u32, &str); 4] = [
 pub const TIMER_UNTIL: &str = "Until a time…";
 pub const SCHEDULE_FILE_NAME: &str = "unidle-schedule.json";
 pub const SCHEDULE_FILE_FILTER: &str = "Unidle schedule";
+pub const CALENDAR_FILE_FILTER: &str = "Calendar";
+pub const CALENDAR_TOO_BIG: &str = "This file is too big to be a calendar";
+pub const CALENDAR_NOT_ICS: &str = "This isn't an iCalendar (.ics) file";
+pub const ACTIVITY_FILE_NAME: &str = "unidle-activity.csv";
+pub const ACTIVITY_FILE_FILTER: &str = "CSV";
 
 /// Wanted ON, held by a condition (SPEC §14).
 pub fn held(hold: Hold) -> &'static str {
@@ -40,6 +45,8 @@ pub fn held(hold: Hold) -> &'static str {
         Hold::OnBattery => "Paused on battery power",
         Hold::LowBattery => "Paused: battery low",
         Hold::AppNotRunning => "Paused until a chosen app runs",
+        Hold::NotOnNetwork => "Paused until on a chosen Wi-Fi network",
+        Hold::NoVpn => "Paused until a VPN connects",
     }
 }
 
@@ -60,6 +67,7 @@ pub const CLI_HOW_TO_STOP: &str = "Stop it with `unidle off`, or from the tray."
 pub const CLI_POWER_ONLY: &str = "Power only: no input nudges";
 pub const CLI_NUDGING: &str = "Input nudges: on";
 pub const CLI_NOT_NUDGING: &str = "Input nudges: off";
+pub const CLI_POLICY: &str = "Input nudges: off by your organization's policy";
 
 /// The status for `unidle status` (SPEC §13): the tray's lines, then
 /// whether nudges are sent.
@@ -72,6 +80,8 @@ pub fn cli_status(status: &Status, now: &Zoned) -> String {
                 CLI_POWER_ONLY
             } else if status.nudging {
                 CLI_NUDGING
+            } else if status.capabilities.input_unavailable == Some(InputUnavailable::Policy) {
+                CLI_POLICY
             } else {
                 CLI_NOT_NUDGING
             }
@@ -100,15 +110,26 @@ pub fn detail(status: &Status, now: &Zoned) -> Option<String> {
         .next_change
         .map(|change| when(if change.on { "ON" } else { "OFF" }, change.at, now));
     if let Some(until) = status.paused_until {
-        return Some(format!("Schedule paused until {}", clock(until, now)));
+        let what = match status.paused_by {
+            Some(Source::Calendar) => "Meeting",
+            _ => "Schedule",
+        };
+        return Some(format!("{what} paused until {}", clock(until, now)));
     }
     let source = match status.source {
         Some(Source::Manual) => "Manual",
         Some(Source::Timer) => "Timer",
         Some(Source::Schedule) => "Scheduled",
-        // OFF: only a planned ON is worth a line, and only the schedule plans
-        // one.
-        None => return next.map(|next| format!("Scheduled · {next}")),
+        Some(Source::Calendar) => "Meeting",
+        // OFF: only a planned ON is worth a line, and only the schedule and
+        // the calendar plan one.
+        None => {
+            let planner = match status.next_change.and_then(|change| change.source) {
+                Some(Source::Calendar) => "Meeting",
+                _ => "Scheduled",
+            };
+            return next.map(|next| format!("{planner} · {next}"));
+        }
     };
     Some(match next {
         Some(next) => format!("{source} · {next}"),
@@ -168,8 +189,10 @@ mod tests {
             next_change: next.map(|(at, on)| NextChange {
                 at: zoned(at).timestamp(),
                 on,
+                source: on.then_some(Source::Schedule),
             }),
             paused_until: None,
+            paused_by: None,
             power_only: false,
             held: None,
         }
@@ -211,11 +234,40 @@ mod tests {
         );
         let paused = Status {
             paused_until: Some(zoned("2026-11-02T18:00").timestamp()),
+            paused_by: Some(Source::Schedule),
             ..status(None, Some(("2026-11-03T09:00", true)))
         };
         assert_eq!(
             detail(paused).as_deref(),
             Some("Schedule paused until 18:00")
+        );
+    }
+
+    #[test]
+    fn detail_names_meetings() {
+        let now = zoned("2026-11-02T17:00");
+        let detail = |status: Status| detail(&status, &now);
+        let mut next = status(None, Some(("2026-11-02T17:30", true)));
+        if let Some(change) = &mut next.next_change {
+            change.source = Some(Source::Calendar);
+        }
+        assert_eq!(detail(next).as_deref(), Some("Meeting · ON at 17:30"));
+        assert_eq!(
+            detail(status(
+                Some(Source::Calendar),
+                Some(("2026-11-02T18:00", false))
+            ))
+            .as_deref(),
+            Some("Meeting · OFF at 18:00")
+        );
+        let paused = Status {
+            paused_until: Some(zoned("2026-11-02T18:00").timestamp()),
+            paused_by: Some(Source::Calendar),
+            ..status(None, None)
+        };
+        assert_eq!(
+            detail(paused).as_deref(),
+            Some("Meeting paused until 18:00")
         );
     }
 

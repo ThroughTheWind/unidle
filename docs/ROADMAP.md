@@ -82,15 +82,15 @@ Why: simulated typing and "realistic" activity are built to make a person look p
 |---|---|---|
 | Conditions: only on AC power; stop below N% battery | S | Should |
 | Conditions: only while a given app or process is running (e.g. a video call app, a render) | M | Should |
-| Conditions: only on a given Wi-Fi network or when a VPN is connected | M | Could |
+| Conditions: only on a given Wi-Fi network or when a VPN is connected ([SPEC §14](SPEC.md#14-phase-4-conditions)) | M | Could |
 | Stop when the screen is locked or the user chooses Sleep | S | Must |
-| Calendar awareness: ON during meetings from a local `.ics` file or URL (opt-in network) | M | Could |
-| CLI on the same binary: `unidle on|off|status|timer 30m`, power-only unless asked otherwise, always visible in the tray (no hidden background mode) | S | Must |
-| Local automation hooks: URL scheme (`unidle://on`), Apple Shortcuts, Windows PowerShell module | M | Could |
-| Run-on-event scripts: user commands run on ON/OFF (opt-in, local only) | S | Could |
-| Activity log: local history of sessions (start, stop, source, duration) with CSV export | S | Should |
-| Managed-device notice: a one-time, read-only local check (domain or MDM enrollment) that suggests power-only mode, never a "safe" score | S | Should |
-| Admin policy: an IT-set registry key or managed preference can turn off input nudges, and the app says so | S | Could |
+| Calendar awareness: ON during meetings from a local `.ics` file, with no network ([SPEC §18](SPEC.md#18-phase-4-calendar)) | M | Could |
+| CLI on the same binary: `unidle on|off|status|timer 30m`, power-only unless asked otherwise, always visible in the tray (no hidden background mode) ([SPEC §13](SPEC.md#13-phase-4-command-line)) | S | Must |
+| Local automation hooks: URL scheme (`unidle://on`), Apple Shortcuts, Windows PowerShell module ([SPEC §13](SPEC.md#13-phase-4-command-line)) | M | Could |
+| Run-on-event scripts: user commands run on ON/OFF (opt-in, local only) ([SPEC §17](SPEC.md#17-phase-4-scripts)) | S | Could |
+| Activity log: local history of sessions (start, stop, source, duration) with CSV export ([SPEC §15](SPEC.md#15-phase-4-activity-log)) | S | Should |
+| Managed-device notice: a one-time, read-only local check (domain or MDM enrollment) that suggests power-only mode, never a "safe" score ([SPEC §16](SPEC.md#16-phase-4-work-computers)) | S | Should |
+| Admin policy: an IT-set registry key or managed preference can turn off input nudges, and the app says so ([SPEC §16](SPEC.md#16-phase-4-work-computers)) | S | Could |
 
 ## Phase 5: Polish and ecosystem (v3.0)
 
@@ -129,5 +129,5 @@ Ideas worth keeping that don't fit a phase yet:
 ## Open questions
 
 1. ~~Should printable typing simulation ship at all, or stay a plugin outside the core app?~~ Resolved: no. Phase 3 is removed.
-2. Is calendar integration worth adding network access for, even as opt-in?
+2. ~~Is calendar integration worth adding network access for, even as opt-in?~~ No (2026-11-06): calendar awareness reads a local `.ics` file only (SPEC §18).
 3. Which package managers matter most to you for the first release?

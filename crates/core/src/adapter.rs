@@ -15,6 +15,8 @@ pub enum InputUnavailable {
     NoDisplay,
     /// The OS or display server lacks what the nudge needs.
     Unsupported,
+    /// The organization's IT policy turned input simulation off (SPEC §16).
+    Policy,
 }
 
 /// What a platform can do right now. The app still turns ON when a capability
@@ -154,6 +156,17 @@ pub trait PlatformAdapter {
 
     /// The total time asleep since the computer started.
     fn time_asleep(&mut self) -> Option<Duration> {
+        None
+    }
+
+    /// The Wi-Fi networks joined, normalized with
+    /// [`crate::platform::normalize_network_name`]; empty on none.
+    fn wifi_networks(&mut self) -> Option<Vec<String>> {
+        None
+    }
+
+    /// Whether a VPN tunnel is up.
+    fn vpn_connected(&mut self) -> Option<bool> {
         None
     }
 }

@@ -152,7 +152,7 @@ Phase 2 of the [roadmap](ROADMAP.md). The toggle is one input among several: the
 - **SC-1 Schedules:** one or more weekly time windows (e.g. Mon to Fri, 09:00 to 18:00) during which simulation is automatically ON. Times are local wall-clock times. A window whose end is at or before its start runs overnight into the next day. Overlapping windows merge.
 - **SC-2 Skip days:** dates on which the schedule doesn't run (holidays). A window that starts on a skip day is skipped.
 - **SC-3 Timers:** "ON for 15 min / 30 min / 1 h / 2 h / until HH:MM" quick actions from the tray menu and the window. "Until" a time already past today means tomorrow.
-- **SC-4 Source indicator:** the state shows its source, Manual, Timer or Scheduled, and the next change ("Timer: OFF at 18:00", "Scheduled: ON at 09:00").
+- **SC-4 Source indicator:** the state shows its source, Manual, Timer, Scheduled or Meeting (§18), and the next change ("Timer: OFF at 18:00", "Scheduled: ON at 09:00").
 - **SC-5 Precedence:**
   - The most recent manual action or timer wins over the schedule. A manual action cancels a running timer, and a new timer replaces a manual action.
   - A manual ON or OFF that differs from the schedule holds until the schedule next changes. Turning OFF during a window pauses it until the window ends. Turning ON outside one keeps it ON until the next window starts, and the schedule takes over from there. A manual action that matches the schedule (ON again during a paused window) resumes following it.
@@ -166,7 +166,7 @@ Phase 2 of the [roadmap](ROADMAP.md). The toggle is one input among several: the
 
 These constraints apply whatever stack is chosen:
 - Separate the **simulation core** (platform adapters for power assertion and input nudge) from the **UI shell**, so the core is unit-testable and could also ship as a CLI (`unidle on|off|status`, §13).
-- One **controller** owns the state machine: `OFF → ON(source) → OFF`, with an event log kept in memory only.
+- One **controller** owns the state machine: `OFF → ON(source) → OFF`, with an event log kept in memory only. The activity log (§15) is separate: opt-in, one row per session, never the event log.
 - Platform adapters expose a common interface: `acquire()`, `release()`, `nudge()`, `capabilities()`.
 - The UI only talks to the controller, never to OS APIs directly.
 
@@ -196,6 +196,8 @@ Phase 4 of the [roadmap](ROADMAP.md). The same `unidle` binary takes commands fr
 - **CL-3 Output.** Text by default, the same lines as the tray; `--json` prints the window's status object. Exit status 0 on success, 1 when the app refuses or can't be reached, 2 for a usage error.
 - **CL-4 Local only.** Commands travel over a Unix socket in a folder private to the user (`$XDG_RUNTIME_DIR`, else a `0700` folder in the temp folder), or a named pipe that refuses remote clients on Windows. No network (NFR-2), and the app ignores anything that isn't one short request.
 - **CL-5 Arguments the app doesn't know as a command** (such as `--hidden` from the login item) start the app as before. An unknown word is a usage error, so a typo never opens a window.
+- **CL-6 Links.** The installers register the `unidle:` scheme: `unidle://on`, `unidle://off`, `unidle://timer/30m` and `unidle://timer/18:00` do what the commands do, for Apple Shortcuts ("Open URLs"), launchers and scripts. A link can come from a web page, so links are always power-only (no `--nudge`), never answer with the status, and need the OS's or browser's own prompt before they open. Windows and Linux start the binary with the link, which reaches the app like a command (CL-2); macOS hands it to the app.
+- **CL-7 PowerShell.** A module in `integrations/powershell` wraps the binary: `Enable-Unidle [-Nudge]`, `Disable-Unidle`, `Start-UnidleTimer -Duration | -Until [-Nudge]`, `Get-UnidleStatus`. Each returns the status object.
 
 ## 14. Phase 4: Conditions
 
@@ -206,12 +208,50 @@ Phase 4 of the [roadmap](ROADMAP.md). Conditions decide whether Unidle should ru
 | Only when plugged in | Off | Held on battery power |
 | Pause on low battery | Never | Held on battery below 10, 20, 30 or 50 % |
 | Only while an app is running | Empty | Held unless one of the named processes runs (case and `.exe` ignored) |
+| Only on these Wi-Fi networks | Empty | Held unless joined to one of the named networks (case ignored); on a cable with no Wi-Fi, held |
+| Only while a VPN is connected | Off | Held while no VPN tunnel is up |
 | Let it sleep while locked | Off | Held while the screen is locked |
 | Turn off after sleep | On | After the computer sleeps while ON or held, it is OFF |
 
 - **CO-1 Never on a guess.** A reading the OS can't give (no battery information, the lock state unknown) never holds anything.
 - **CO-2 No nudges on a locked screen**, whatever the settings: the power assertion stays, so a render keeps running, but nothing is simulated for nobody.
 - **CO-3 Sleep.** While ON the assertion blocks idle sleep, so time asleep means the user chose Sleep or closed the lid (PB-4). On waking, Unidle turns OFF as a manual OFF would: a timer is cancelled and a schedule window pauses until it ends (SC-5). Detected by comparing a clock that counts sleep with one that doesn't (`CLOCK_BOOTTIME`/`CLOCK_MONOTONIC`, `QueryInterruptTime`/`QueryUnbiasedInterruptTime`, `mach_continuous_time`/`mach_absolute_time`), within 15 s of waking.
-- **CO-4 Polling.** Conditions are read every 5 s while ON or held, only those that are set, and never while OFF. Lock: logind `LockedHint` or `org.freedesktop.ScreenSaver.GetActive` on Linux, the input desktop on Windows, `CGSSessionScreenIsLocked` on macOS. Power: `/sys/class/power_supply`, `GetSystemPowerStatus`, IOKit power sources. Apps: `/proc`, a ToolHelp snapshot, `proc_listallpids`. Only process names are read, never their contents or windows (NFR-2).
+- **CO-4 Polling.** Conditions are read every 5 s while ON or held, only those that are set, and never while OFF. Lock: logind `LockedHint` or `org.freedesktop.ScreenSaver.GetActive` on Linux, the input desktop on Windows, `CGSSessionScreenIsLocked` on macOS. Power: `/sys/class/power_supply`, `GetSystemPowerStatus`, IOKit power sources. Apps: `/proc`, a ToolHelp snapshot, `proc_listallpids`. Only process names are read, never their contents or windows (NFR-2). Wi-Fi: NetworkManager's active access point, the WLAN API's current connection, `ipconfig getsummary`; Windows 11 24H2 and recent macOS hide the network name from apps without Location access, and then this condition never holds (CO-1). VPN: an interface that is up with an IPv4 address and is a tunnel by name (`tun`, `tap`, `wg`, `ppp`, `ipsec`, `utun`) or by type (Linux `ARPHRD_NONE`), or on Windows an adapter that is up and is PPP, a virtual adapter, or describes itself as a VPN, WireGuard or TAP tunnel. No traffic is sent or inspected.
 - **CO-5 Precedence.** Conditions come after SC-5: they never turn anything ON, only hold what the user, a timer or the schedule turned ON.
 
+## 15. Phase 4: Activity log
+
+Phase 4 of the [roadmap](ROADMAP.md). An opt-in, local record of when Unidle kept the computer awake, for the user's own timesheets or for showing IT what it did.
+
+- **AL-1 Opt-in.** Off by default. Settings → Activity log → "Keep an activity log". Turning it off stops adding rows and keeps the ones already there.
+- **AL-2 One row per ON session**, written when it ends: turned OFF, paused by a condition (§14), the computer slept (CO-3, ending when it fell asleep, not when it woke), or the app quit. A session cut short by a crash, or by the process being killed, has no row. A timer that ends inside a schedule window continues the same session.
+- **AL-3 Columns:** `start,end,duration_seconds,source,power_only,nudges`. Times are local with their UTC offset (`2026-11-05T09:00:00+01:00`); `source` is `manual`, `timer`, `schedule` or `calendar`, the one it started with; `power_only` is `true` when any of it ran without nudges by request (§13); `nudges` counts the ones sent. Nothing about what the user did, typed or ran is written (NFR-2).
+- **AL-4 Stays on this computer**: `activity-log.csv` in the app's data directory, at most 5,000 rows, the oldest dropped first. "Export…" saves a copy where the user picks; "Clear" (clicked twice) deletes it.
+
+## 16. Phase 4: Work computers
+
+Phase 4 of the [roadmap](ROADMAP.md). On a computer an organization manages, its IT team can likely see Unidle, and its rules decide whether Unidle may be used there. Unidle says so once, and obeys a policy IT sets.
+
+- **WC-1 One check, at the first launch that shows the window**, and again from Settings → System → Work computer → Check. It is local and read-only: Windows, joined to an Active Directory domain (`NetGetJoinInformation`) or Entra ID (`HKLM\SYSTEM\CurrentControlSet\Control\CloudDomainJoin\JoinInfo`), or enrolled in MDM (an `HKLM\SOFTWARE\Microsoft\Enrollments` entry with a `ProviderID`); macOS, `profiles status -type enrollment` saying Yes, or an Active Directory binding; Linux, `/etc/sssd/sssd.conf` or `/etc/krb5.keytab`. It never looks for monitoring, security or tracking products by name.
+- **WC-2 The notice**, when a signal is found: "This computer appears to be managed by an organization. Its IT team can likely see the apps you install and may monitor activity. Check your organization's policy before using Unidle here." with **Use power-only mode** (turns Simulate input off), **Continue**, and **Learn more** (the README's "On a work computer"). It never blocks.
+- **WC-3 No reassurance.** Finding nothing shows nothing at launch; from Settings it says "No sign found. A work computer can still have its own rules." There is never a "safe" verdict or score.
+- **WC-4 IT policy.** `DisableInputSimulation` turns input nudges off whatever the settings say, read once at launch: a `DWORD` of 1 under `HKLM` or `HKCU\SOFTWARE\Policies\Unidle` on Windows, a managed (forced) preference for `com.throughthewind.unidle` on macOS, `{"disableInputSimulation": true}` in `/etc/unidle/policy.json` on Linux. The power assertion still works. The window says "Your organization turned off input simulation", and `unidle status` says "Input nudges: off by your organization's policy". To block Unidle entirely, IT uses its application control (AppLocker, WDAC, Santa), which does that better than an app could.
+
+## 17. Phase 4: Scripts
+
+Phase 4 of the [roadmap](ROADMAP.md). A command the user writes runs when Unidle turns ON or OFF, for example to set a chat status, pause a sync, or log to their own tool.
+
+- **SR-1 Opt-in.** Settings → Scripts, "When it turns on" and "When it turns off". Empty, the default, runs nothing.
+- **SR-2 When.** ON is when the power assertion is taken, whatever turned it on; OFF is when it's let go: turned off, paused by a condition (§14), after sleep, or quitting. Turning ON while already ON runs nothing.
+- **SR-3 How.** With the user's shell (`/bin/sh -c`, or `cmd /C` with no window on Windows), as the user, with `UNIDLE_EVENT` (`on` or `off`) and `UNIDLE_SOURCE` (`manual`, `timer`, `schedule` or `calendar` on ON). Unidle doesn't wait for it, show its output, or stop it; a failure is only logged.
+- **SR-4 Local.** Unidle runs exactly the line in the settings file, which only the user and the window can change; nothing else can set it, and the app adds no network of its own (NFR-2).
+
+## 18. Phase 4: Calendar
+
+Phase 4 of the [roadmap](ROADMAP.md). Unidle turns ON during the meetings in a calendar file, for example so the screen stays on through a call. The file is local: Unidle never fetches a calendar (NFR-2). To follow an online calendar, export or sync it to a file with the calendar app.
+
+- **CA-1 Opt-in.** Settings → Calendar → Choose… picks an iCalendar (`.ics`) file; Remove stops following it. No file, the default, plans nothing.
+- **CA-2 Meetings.** An event turns it ON from its start to its end, like a schedule window (§10): the source is Meeting (`calendar`), a manual OFF pauses the meeting until it ends ("Meeting paused until 15:00"), and a manual ON or a timer wins over it. When a schedule window and a meeting overlap, the window names the source and it stays ON until both end.
+- **CA-3 What counts.** Events with a start time and an end or a duration. All-day events, events marked free (`TRANSP:TRANSPARENT`) and cancelled ones don't count. Recurring events follow `RRULE` (daily, weekly, monthly and yearly, with `INTERVAL`, `COUNT`, `UNTIL`, `BYDAY` and `BYMONTHDAY`), `EXDATE` and moved occurrences (`RECURRENCE-ID`); a rule with parts beyond these keeps only its first meeting. Times follow their `TZID` when it names an IANA zone, and the computer's own zone otherwise. Nothing the reader can't make sense of turns it ON.
+- **CA-4 Kept current.** The file is checked every minute and read again when it changes; the meetings from a day back to two weeks ahead are worked out again every hour. A file that can't be read plans nothing, and Settings says why.
+- **CA-5 Private.** Only the times are kept, in memory. Titles, places and attendees are skipped and never stored, logged or shown.

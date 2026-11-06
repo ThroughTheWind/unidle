@@ -6,7 +6,7 @@
 The board. One row per live work item, grouped by status. Items live in
 [`items/`](items/); finished work moves to [`archive/`](archive/).
 
-<!-- NEXT-ID: WI-016 -->
+<!-- NEXT-ID: WI-022 -->
 <!-- Claim from this marker and bump it on your own branch. `node .ai/rungs.mjs check` refuses a duplicate. -->
 
 ## In progress
@@ -33,6 +33,12 @@ The board. One row per live work item, grouped by status. Items live in
 | [WI-013](items/WI-013-window-polish.md) | Let the timer row and tray click be turned off, drop the main title, polish form controls | feature | `feature/WI-013-window-polish` |
 | [WI-014](items/WI-014-cli.md) | Add the unidle command line, power-only by default, driving the tray app | feature | `feature/WI-014-cli` |
 | [WI-015](items/WI-015-conditions.md) | Hold activity on conditions: screen lock, sleep, AC power, battery, a running app | feature | `feature/WI-015-conditions` |
+| [WI-016](items/WI-016-activity-log.md) | Keep an opt-in local activity log of ON sessions, with CSV export | feature | `feature/WI-016-activity-log` |
+| [WI-017](items/WI-017-work-computers.md) | Warn once on a managed computer, and obey an IT policy that turns input simulation off | feature | `feature/WI-017-managed-device` |
+| [WI-018](items/WI-018-network-conditions.md) | Hold activity unless on a chosen Wi-Fi network or a VPN | feature | `feature/WI-018-network-conditions` |
+| [WI-019](items/WI-019-automation-hooks.md) | Drive Unidle from links, Apple Shortcuts and PowerShell | feature | `feature/WI-019-automation-hooks` |
+| [WI-020](items/WI-020-event-scripts.md) | Run the user's commands when Unidle turns on or off | feature | `feature/WI-020-event-scripts` |
+| [WI-021](items/WI-021-calendar.md) | Turn Unidle on during meetings from a local calendar file | feature | `feature/WI-021-calendar` |
 
 ## Planned
 

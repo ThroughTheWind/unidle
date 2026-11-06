@@ -1,5 +1,5 @@
-//! Who decides whether simulation is ON: the user, a timer or the schedule
-//! (ROADMAP Phase 2, SPEC §10). Pure decisions from a wall-clock time, so the
+//! Who decides whether simulation is ON: the user, a timer, the schedule or
+//! the calendar's meetings (SPEC §10, §18). Pure decisions from a wall-clock time, so the
 //! answer is right after a sleep or a DST change without catching up on
 //! anything.
 //!
@@ -12,6 +12,9 @@
 //!   starts, and the schedule takes over from there. Without a schedule, a
 //!   manual change holds until the next one.
 //! - A timer keeps it ON until it ends, then the schedule decides again.
+//! - The calendar's meetings plan ON times just as schedule windows do, and
+//!   the two together are "the plan" below. A schedule window wins the
+//!   source when both run.
 
 use jiff::Timestamp;
 use jiff::tz::TimeZone;
@@ -63,11 +66,15 @@ pub struct NextChange {
     pub at: Timestamp,
     /// What it turns to.
     pub on: bool,
+    /// What turns it ON then; `None` for an OFF.
+    pub source: Option<Source>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Automation {
     schedule: Schedule,
+    /// Busy times from the calendar, sorted and merged.
+    meetings: Vec<(Timestamp, Timestamp)>,
     held: Option<Override>,
 }
 
@@ -76,18 +83,65 @@ impl Automation {
         &self.schedule
     }
 
+    pub fn meetings(&self) -> &[(Timestamp, Timestamp)] {
+        &self.meetings
+    }
+
     /// Whether anything will change on its own, so the time must be watched.
     pub fn is_watching(&self) -> bool {
-        self.schedule.is_active() || self.held.is_some_and(|held| held.until().is_some())
+        self.schedule.is_active()
+            || !self.meetings.is_empty()
+            || self.held.is_some_and(|held| held.until().is_some())
     }
 
     pub fn decide(&self, at: Timestamp, tz: &TimeZone) -> Decision {
         let source = match self.held.filter(|held| held.is_active(at)) {
             Some(Override::Manual { on, .. }) => on.then_some(Source::Manual),
             Some(Override::Timer { .. }) => Some(Source::Timer),
-            None => self.schedule.is_on(at, tz).then_some(Source::Schedule),
+            None => self.planned(at, tz),
         };
         Decision { source }
+    }
+
+    /// What the schedule and the calendar want at `at`.
+    fn planned(&self, at: Timestamp, tz: &TimeZone) -> Option<Source> {
+        if self.schedule.is_on(at, tz) {
+            Some(Source::Schedule)
+        } else if self.in_meeting(at) {
+            Some(Source::Calendar)
+        } else {
+            None
+        }
+    }
+
+    fn in_meeting(&self, at: Timestamp) -> bool {
+        // Sorted and merged: only the last meeting that starts by `at` can
+        // contain it.
+        let index = self.meetings.partition_point(|&(start, _)| start <= at);
+        index > 0 && at < self.meetings[index - 1].1
+    }
+
+    /// Every schedule boundary and meeting start and end after `at`, in
+    /// order, without duplicates.
+    fn boundaries_after(&self, at: Timestamp, tz: &TimeZone) -> Vec<Timestamp> {
+        let mut boundaries = self.schedule.boundaries_after(at, tz);
+        boundaries.extend(
+            self.meetings
+                .iter()
+                .flat_map(|&(start, end)| [start, end])
+                .filter(|&boundary| boundary > at),
+        );
+        boundaries.sort_unstable();
+        boundaries.dedup();
+        boundaries
+    }
+
+    /// The first time after `at` when the plan turns ON or OFF.
+    fn next_plan_flip(&self, at: Timestamp, tz: &TimeZone) -> Option<Timestamp> {
+        let on = self.planned(at, tz).is_some();
+        self.boundaries_after(at, tz)
+            .into_iter()
+            .find(|&boundary| self.planned(boundary, tz).is_some() != on)
     }
 
     /// Forgets an override that has ended.
@@ -99,13 +153,13 @@ impl Automation {
 
     /// The user turned it ON or OFF. Cancels a running timer.
     pub fn set_manual(&mut self, on: bool, at: Timestamp, tz: &TimeZone) {
-        self.held = if self.schedule.is_on(at, tz) == on {
-            // Back in line with the schedule: follow it again.
+        self.held = if self.planned(at, tz).is_some() == on {
+            // Back in line with the plan: follow it again.
             None
         } else {
             Some(Override::Manual {
                 on,
-                until: self.schedule.next_flip(at, tz),
+                until: self.next_plan_flip(at, tz),
             })
         };
     }
@@ -123,18 +177,38 @@ impl Automation {
         }
     }
 
-    /// When a manual OFF pauses the schedule, the time the pause ends.
-    pub fn paused_until(&self, at: Timestamp, tz: &TimeZone) -> Option<Timestamp> {
+    /// When a manual OFF pauses a schedule window or a meeting: the time the
+    /// pause ends, and which of the two it paused.
+    pub fn paused(&self, at: Timestamp, tz: &TimeZone) -> Option<(Timestamp, Source)> {
         match self.held.filter(|held| held.is_active(at)) {
-            Some(Override::Manual { on: false, until }) if self.schedule.is_on(at, tz) => until,
+            Some(Override::Manual {
+                on: false,
+                until: Some(until),
+            }) => self.planned(at, tz).map(|source| (until, source)),
             _ => None,
         }
     }
 
     /// Replaces the schedule. A manual override is re-anchored on the new
-    /// schedule's next change, as if it had just been made.
+    /// plan's next change, as if it had just been made.
     pub fn set_schedule(&mut self, schedule: Schedule, at: Timestamp, tz: &TimeZone) {
         self.schedule = schedule;
+        self.re_anchor(at, tz);
+    }
+
+    /// Replaces the calendar's busy times, sorted and merged. A manual
+    /// override is re-anchored as for [`Self::set_schedule`].
+    pub fn set_meetings(
+        &mut self,
+        meetings: Vec<(Timestamp, Timestamp)>,
+        at: Timestamp,
+        tz: &TimeZone,
+    ) {
+        self.meetings = crate::calendar::merge(meetings);
+        self.re_anchor(at, tz);
+    }
+
+    fn re_anchor(&mut self, at: Timestamp, tz: &TimeZone) {
         if let Some(Override::Manual { on, .. }) = self.held.filter(|held| held.is_active(at)) {
             self.set_manual(on, at, tz);
         }
@@ -143,7 +217,7 @@ impl Automation {
     /// The first time after `at` when the decision turns ON or OFF.
     pub fn next_change(&self, at: Timestamp, tz: &TimeZone) -> Option<NextChange> {
         let on = self.decide(at, tz).is_on();
-        let mut candidates = self.schedule.boundaries_after(at, tz);
+        let mut candidates = self.boundaries_after(at, tz);
         if let Some(until) = self
             .held
             .and_then(Override::until)
@@ -154,8 +228,13 @@ impl Automation {
         }
         candidates
             .into_iter()
-            .find(|&candidate| self.decide(candidate, tz).is_on() != on)
-            .map(|at| NextChange { at, on: !on })
+            .map(|candidate| (candidate, self.decide(candidate, tz).source))
+            .find(|&(_, source)| source.is_some() != on)
+            .map(|(at, source)| NextChange {
+                at,
+                on: !on,
+                source,
+            })
     }
 }
 
@@ -188,7 +267,8 @@ mod tests {
             automation.next_change(at("2026-11-02T10:00"), &paris()),
             Some(NextChange {
                 at: at("2026-11-02T18:00"),
-                on: false
+                on: false,
+                source: None,
             })
         );
     }
@@ -201,15 +281,16 @@ mod tests {
 
         assert_eq!(source(&automation, "2026-11-02T17:00"), None);
         assert_eq!(
-            automation.paused_until(at("2026-11-02T17:00"), &tz),
-            Some(at("2026-11-02T18:00"))
+            automation.paused(at("2026-11-02T17:00"), &tz),
+            Some((at("2026-11-02T18:00"), Source::Schedule))
         );
         // Tuesday's window runs as usual.
         assert_eq!(
             automation.next_change(at("2026-11-02T17:00"), &tz),
             Some(NextChange {
                 at: at("2026-11-03T09:00"),
-                on: true
+                on: true,
+                source: Some(Source::Schedule),
             })
         );
         assert_eq!(
@@ -237,7 +318,8 @@ mod tests {
             automation.next_change(at("2026-11-02T20:00"), &tz),
             Some(NextChange {
                 at: at("2026-11-03T18:00"),
-                on: false
+                on: false,
+                source: None,
             })
         );
     }
@@ -281,7 +363,8 @@ mod tests {
             automation.next_change(start, &tz),
             Some(NextChange {
                 at: at("2026-11-02T19:30"),
-                on: false
+                on: false,
+                source: None,
             })
         );
         assert_eq!(source(&automation, "2026-11-02T19:30"), None);
@@ -298,7 +381,8 @@ mod tests {
             automation.next_change(at("2026-11-02T08:45"), &tz),
             Some(NextChange {
                 at: at("2026-11-02T18:00"),
-                on: false
+                on: false,
+                source: None,
             })
         );
     }
@@ -313,7 +397,8 @@ mod tests {
             automation.next_change(at("2026-11-02T17:00"), &tz),
             Some(NextChange {
                 at: at("2026-11-02T19:00"),
-                on: false
+                on: false,
+                source: None,
             })
         );
     }
@@ -361,6 +446,99 @@ mod tests {
             Some(Source::Schedule)
         );
         assert_eq!(source(&automation, "2026-11-02T18:00"), None);
+    }
+
+    fn meetings() -> Vec<(Timestamp, Timestamp)> {
+        vec![
+            (at("2026-11-02T19:00"), at("2026-11-02T19:30")),
+            // Overlaps the window's end: ON straight through.
+            (at("2026-11-03T17:30"), at("2026-11-03T18:30")),
+        ]
+    }
+
+    #[test]
+    fn meetings_turn_it_on_like_windows() {
+        let tz = paris();
+        let mut automation = automation();
+        automation.set_meetings(meetings(), at("2026-11-02T00:00"), &tz);
+        assert!(automation.is_watching());
+        assert_eq!(source(&automation, "2026-11-02T18:59"), None);
+        assert_eq!(
+            source(&automation, "2026-11-02T19:00"),
+            Some(Source::Calendar)
+        );
+        assert_eq!(source(&automation, "2026-11-02T19:30"), None);
+        assert_eq!(
+            automation.next_change(at("2026-11-02T18:00"), &tz),
+            Some(NextChange {
+                at: at("2026-11-02T19:00"),
+                on: true,
+                source: Some(Source::Calendar),
+            })
+        );
+        // The window wins the source; the meeting carries it past 18:00.
+        assert_eq!(
+            source(&automation, "2026-11-03T17:45"),
+            Some(Source::Schedule)
+        );
+        assert_eq!(
+            source(&automation, "2026-11-03T18:15"),
+            Some(Source::Calendar)
+        );
+        assert_eq!(
+            automation.next_change(at("2026-11-03T12:00"), &tz),
+            Some(NextChange {
+                at: at("2026-11-03T18:30"),
+                on: false,
+                source: None,
+            })
+        );
+
+        // Calendar only, no schedule.
+        let mut automation = Automation::default();
+        automation.set_meetings(meetings(), at("2026-11-02T00:00"), &tz);
+        assert_eq!(
+            source(&automation, "2026-11-02T19:10"),
+            Some(Source::Calendar)
+        );
+    }
+
+    #[test]
+    fn manual_off_pauses_a_meeting_until_it_ends() {
+        let tz = paris();
+        let mut automation = Automation::default();
+        automation.set_meetings(meetings(), at("2026-11-02T00:00"), &tz);
+        automation.set_manual(false, at("2026-11-02T19:05"), &tz);
+        assert_eq!(source(&automation, "2026-11-02T19:10"), None);
+        assert_eq!(
+            automation.paused(at("2026-11-02T19:10"), &tz),
+            Some((at("2026-11-02T19:30"), Source::Calendar))
+        );
+        assert_eq!(
+            source(&automation, "2026-11-03T17:30"),
+            Some(Source::Calendar)
+        );
+    }
+
+    #[test]
+    fn new_meetings_re_anchor_a_manual_override() {
+        let tz = paris();
+        let mut automation = Automation::default();
+        automation.set_manual(true, at("2026-11-02T18:00"), &tz);
+        automation.set_meetings(meetings(), at("2026-11-02T18:30"), &tz);
+        // ON by hand until the meeting takes over, then OFF when it ends.
+        assert_eq!(
+            source(&automation, "2026-11-02T18:45"),
+            Some(Source::Manual)
+        );
+        assert_eq!(
+            source(&automation, "2026-11-02T19:15"),
+            Some(Source::Calendar)
+        );
+        assert_eq!(source(&automation, "2026-11-02T19:30"), None);
+        automation.expire(at("2026-11-02T19:40"));
+        automation.set_meetings(Vec::new(), at("2026-11-02T19:40"), &tz);
+        assert!(!automation.is_watching());
     }
 
     #[test]

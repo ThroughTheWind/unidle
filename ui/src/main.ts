@@ -14,16 +14,19 @@ interface Status {
   elapsedSecs: number;
   powerAssertion: boolean;
   nudging: boolean;
-  inputUnavailable: "needsPermission" | "wayland" | "noDisplay" | "unsupported" | null;
+  inputUnavailable: "needsPermission" | "wayland" | "noDisplay" | "unsupported" | "policy" | null;
   /** Who turned it on (SPEC SC-4). */
-  source: "manual" | "timer" | "schedule" | null;
-  /** The next time a timer or the schedule turns it ON or OFF; ms since the epoch. */
-  nextChange: { at: number; on: boolean } | null;
-  /** While a manual OFF pauses a schedule window: when the window ends. */
+  source: Source | null;
+  /** The next time a timer, the schedule or a meeting turns it ON or OFF; ms since the epoch. */
+  nextChange: { at: number; on: boolean; source: Source | null } | null;
+  /** While a manual OFF pauses a schedule window or a meeting: when it ends. */
   pausedUntil: number | null;
+  pausedBy: "schedule" | "calendar" | null;
   /** Wanted ON, but a condition holds it OFF for now (SPEC §14). */
-  held: "locked" | "onBattery" | "lowBattery" | "appNotRunning" | null;
+  held: "locked" | "onBattery" | "lowBattery" | "appNotRunning" | "notOnNetwork" | "noVpn" | null;
 }
+
+type Source = "manual" | "timer" | "schedule" | "calendar";
 
 type NudgeMethod = "pointer" | "keystroke" | "both";
 
@@ -51,8 +54,14 @@ interface Settings extends ScheduleSettings {
   onlyOnAc: boolean;
   minBattery: number | null;
   whileRunning: string[];
+  onNetworks: string[];
+  onlyOnVpn: boolean;
   releaseWhenLocked: boolean;
   offAfterSleep: boolean;
+  activityLog: boolean;
+  onCommand: string | null;
+  offCommand: string | null;
+  calendarFile: string | null;
 }
 
 /** Mirrors `APP_ICONS` in crates/core/src/settings.rs. The first is the default. */
@@ -156,7 +165,7 @@ function renderStatus(): void {
     setStatusLine("warning", strings.notImplemented);
   } else if (status.on && wantsNudges && status.inputUnavailable !== null) {
     // Power assertion only: say so, without blocking anything (SPEC PB-2).
-    setStatusLine("warning", strings.inputUnavailable);
+    setStatusLine("warning", status.inputUnavailable === "policy" ? strings.inputPolicy : strings.inputUnavailable);
     statusAction.hidden = status.inputUnavailable !== "needsPermission";
   } else {
     setStatusLine(null);
@@ -179,13 +188,13 @@ function renderDetail(current: Status): void {
   if (current.held !== null) {
     line = strings.holds[current.held];
   } else if (current.pausedUntil !== null) {
-    line = strings.paused(shortWhen(current.pausedUntil));
+    line = strings.paused(shortWhen(current.pausedUntil), current.pausedBy === "calendar");
   } else if (current.source !== null) {
     const source = strings.sources[current.source];
     line = next ? `${source} · ${next}` : source;
   } else if (next) {
-    // OFF: only the schedule plans an ON.
-    line = `${strings.sources.schedule} · ${next}`;
+    // OFF: only the schedule and the calendar plan an ON.
+    line = `${strings.sources[current.nextChange?.source ?? "schedule"]} · ${next}`;
   }
   detail.hidden = line === null;
   // Blue is for scheduling (design system), so a plain manual ON stays muted.
@@ -314,8 +323,13 @@ const trayClickToggles = element<HTMLInputElement>("tray-click-toggles");
 const onlyOnAc = element<HTMLInputElement>("only-on-ac");
 const minBattery = element<HTMLSelectElement>("min-battery");
 const whileRunning = element<HTMLInputElement>("while-running");
+const onNetworks = element<HTMLInputElement>("on-networks");
+const onlyOnVpn = element<HTMLInputElement>("only-on-vpn");
 const releaseWhenLocked = element<HTMLInputElement>("release-when-locked");
 const offAfterSleep = element<HTMLInputElement>("off-after-sleep");
+const activityLog = element<HTMLInputElement>("activity-log");
+const onCommand = element<HTMLInputElement>("on-command");
+const offCommand = element<HTMLInputElement>("off-command");
 const shortcutRecord = element<HTMLButtonElement>("shortcut-record");
 const shortcutClear = element<HTMLButtonElement>("shortcut-clear");
 const settingsError = element("settings-error");
@@ -448,8 +462,14 @@ function renderSettings(): void {
   onlyOnAc.checked = settings.onlyOnAc;
   minBattery.value = settings.minBattery === null ? "" : String(settings.minBattery);
   if (document.activeElement !== whileRunning) whileRunning.value = settings.whileRunning.join(", ");
+  if (document.activeElement !== onNetworks) onNetworks.value = settings.onNetworks.join(", ");
+  onlyOnVpn.checked = settings.onlyOnVpn;
   releaseWhenLocked.checked = settings.releaseWhenLocked;
   offAfterSleep.checked = settings.offAfterSleep;
+  activityLog.checked = settings.activityLog;
+  if (document.activeElement !== onCommand) onCommand.value = settings.onCommand ?? "";
+  if (document.activeElement !== offCommand) offCommand.value = settings.offCommand ?? "";
+  void renderCalendar(settings.calendarFile);
   renderTimerRow();
 
   for (const row of settingsView.querySelectorAll<HTMLElement>("[data-needs-nudge]")) {
@@ -526,20 +546,124 @@ onToggle(showTimers, "showTimers");
 onToggle(trayClickToggles, "trayClickToggles");
 onToggle(onlyOnAc, "onlyOnAc");
 onToggle(releaseWhenLocked, "releaseWhenLocked");
+onToggle(onlyOnVpn, "onlyOnVpn");
 onToggle(offAfterSleep, "offAfterSleep");
+onToggle(activityLog, "activityLog");
+
+// Run-on-event scripts (SPEC §17): saved when the field is left, blank is none.
+text("h-scripts", strings.scripts);
+text("d-scripts", strings.scriptsHint);
+text("l-on-command", strings.onCommand);
+text("l-off-command", strings.offCommand);
+for (const [input, field] of [
+  [onCommand, "onCommand"],
+  [offCommand, "offCommand"],
+] as const) {
+  input.addEventListener("change", () => void update({ [field]: input.value.trim() || null }));
+}
+
+// Calendar awareness (SPEC §18): a local .ics file, picked in a dialog the
+// Rust side opens and read there. Nothing is fetched.
+text("h-calendar", strings.calendar);
+text("d-calendar", strings.calendarHint);
+text("l-calendar-file", strings.calendarFile);
+const calendarChoose = element<HTMLButtonElement>("calendar-choose");
+const calendarRemove = element<HTMLButtonElement>("calendar-remove");
+const calendarFileHint = element<HTMLElement>("d-calendar-file");
+calendarChoose.textContent = strings.chooseCalendar;
+calendarRemove.textContent = strings.removeCalendar;
+
+async function renderCalendar(file: string | null): Promise<void> {
+  calendarRemove.hidden = file === null;
+  if (file === null) {
+    calendarFileHint.textContent = strings.calendarNone;
+    calendarFileHint.title = "";
+    return;
+  }
+  const name = file.split(/[\\/]/).pop() ?? file;
+  calendarFileHint.title = file;
+  try {
+    const info = await invoke<{ events: number | null; error: string | null }>("calendar_info");
+    calendarFileHint.textContent =
+      info.error !== null
+        ? strings.calendarError(name, info.error)
+        : info.events !== null
+          ? strings.calendarRead(name, info.events)
+          : name;
+  } catch {
+    calendarFileHint.textContent = name;
+  }
+}
+
+calendarChoose.addEventListener("click", async () => {
+  try {
+    const chosen = await invoke<Settings | null>("choose_calendar_file");
+    if (chosen) {
+      settings = chosen;
+      showSettingsError(null);
+      renderSettings();
+    }
+  } catch (error) {
+    showSettingsError(message(error));
+  }
+});
+calendarRemove.addEventListener("click", () => void update({ calendarFile: null }));
+
+// The activity log (SPEC §15). The file stays on this computer; the Rust side
+// opens the save dialog.
+text("h-activity-log", strings.activityLogGroup);
+text("l-activity-log", strings.activityLog);
+text("d-activity-log", strings.activityLogHint);
+text("l-activity-file", strings.activityFile);
+text("d-activity-file", strings.activityFileHint);
+const activityExport = element<HTMLButtonElement>("activity-export");
+const activityClear = element<HTMLButtonElement>("activity-clear");
+activityExport.textContent = strings.exportActivity;
+activityClear.textContent = strings.clearActivity;
+activityExport.addEventListener("click", async () => {
+  try {
+    if (await invoke<boolean>("export_activity_log")) confirmOn(activityExport, strings.exported, strings.exportActivity);
+  } catch (error) {
+    showSettingsError(message(error));
+  }
+});
+// Deleting can't be undone, so the first click only asks.
+let clearArmed: ReturnType<typeof setTimeout> | null = null;
+activityClear.addEventListener("click", async () => {
+  if (clearArmed === null) {
+    activityClear.textContent = strings.clearActivityConfirm;
+    clearArmed = setTimeout(() => {
+      clearArmed = null;
+      activityClear.textContent = strings.clearActivity;
+    }, 3000);
+    return;
+  }
+  clearTimeout(clearArmed);
+  clearArmed = null;
+  try {
+    await invoke("clear_activity_log");
+    showSettingsError(null);
+    confirmOn(activityClear, strings.cleared, strings.clearActivity);
+  } catch (error) {
+    activityClear.textContent = strings.clearActivity;
+    showSettingsError(message(error));
+  }
+});
 
 minBattery.add(new Option(strings.minBatteryOff, ""));
 for (const level of strings.minBatteryLevels) minBattery.add(new Option(`${level} %`, String(level)));
 minBattery.addEventListener("change", () => {
   void update({ minBattery: minBattery.value === "" ? null : Number(minBattery.value) });
 });
-whileRunning.addEventListener("change", () => {
-  const names = whileRunning.value
+/** "zoom, blender" as a list, without blanks. */
+function names(input: HTMLInputElement): string[] {
+  return input.value
     .split(",")
     .map((name) => name.trim())
     .filter((name) => name !== "");
-  void update({ whileRunning: names });
-});
+}
+whileRunning.addEventListener("change", () => void update({ whileRunning: names(whileRunning) }));
+onNetworks.addEventListener("change", () => void update({ onNetworks: names(onNetworks) }));
 
 nudgeKey.addEventListener("change", () => void update({ nudgeKey: nudgeKey.value }));
 
@@ -591,12 +715,13 @@ shortcutRecord.addEventListener("blur", () => {
 });
 shortcutClear.addEventListener("click", () => void update({ globalShortcut: null }));
 
-function showView(name: "main" | "settings"): void {
+function showView(name: "main" | "settings" | "notice"): void {
   const inSettings = name === "settings";
-  mainView.hidden = inSettings;
+  mainView.hidden = name !== "main";
   settingsView.hidden = !inSettings;
+  noticeView.hidden = name !== "notice";
   back.hidden = !inSettings;
-  openSettings.hidden = inSettings;
+  openSettings.hidden = name !== "main";
   // The main screen stays uncluttered: only the update link sits there.
   openWebsite.hidden = !inSettings;
   shell.classList.toggle("in-settings", inSettings);
@@ -605,7 +730,8 @@ function showView(name: "main" | "settings"): void {
   text("title", inSettings ? strings.settings : "");
   if (recording) stopRecording();
   showSettingsError(null);
-  (inSettings ? back : power).focus();
+  if (name === "notice") noticePowerOnly.focus();
+  else (inSettings ? back : power).focus();
 }
 
 openSettings.addEventListener("click", () => showView("settings"));
@@ -642,6 +768,10 @@ text("l-min-battery", strings.minBattery);
 text("d-min-battery", strings.minBatteryHint);
 text("l-while-running", strings.whileRunning);
 text("d-while-running", strings.whileRunningHint);
+text("l-on-networks", strings.onNetworks);
+text("d-on-networks", strings.onNetworksHint);
+text("l-only-vpn", strings.onlyOnVpn);
+text("d-only-vpn", strings.onlyOnVpnHint);
 text("l-locked", strings.releaseWhenLocked);
 text("d-locked", strings.releaseWhenLockedHint);
 text("l-after-sleep", strings.offAfterSleep);
@@ -697,7 +827,34 @@ async function takeTimerPickerRequest(): Promise<void> {
 await listen("show-timer-picker", () => void takeTimerPickerRequest());
 await takeTimerPickerRequest();
 
+// Work computers (SPEC §16): the notice suggests power-only mode and never blocks.
+const noticeView = element("notice-view");
+const noticePowerOnly = element<HTMLButtonElement>("notice-power-only");
+const noticeContinue = element<HTMLButtonElement>("notice-continue");
+const noticeLearn = element<HTMLButtonElement>("notice-learn");
+text("notice-title", strings.noticeTitle);
+text("notice-text", strings.noticeText);
+noticePowerOnly.textContent = strings.noticePowerOnly;
+noticeContinue.textContent = strings.noticeContinue;
+noticeLearn.textContent = strings.noticeLearnMore;
+noticePowerOnly.addEventListener("click", async () => {
+  await update({ nudgeEnabled: false });
+  showView("main");
+});
+noticeContinue.addEventListener("click", () => showView("main"));
+noticeLearn.addEventListener("click", () => void invoke("open_link", { link: "workComputer" }));
+
+text("l-work-computer", strings.workComputer);
+text("d-work-computer", strings.workComputerHint);
+const workComputerCheck = element<HTMLButtonElement>("work-computer-check");
+workComputerCheck.textContent = strings.workComputerCheck;
+workComputerCheck.addEventListener("click", async () => {
+  if ((await invoke<string | null>("check_managed")) !== null) showView("notice");
+  else text("d-work-computer", strings.workComputerNone);
+});
+
 await refreshStatus();
+if ((await invoke<string | null>("take_managed_notice")) !== null) showView("notice");
 setInterval(() => {
   if (pending !== null) return;
   // ON: the elapsed time. OFF with a change planned: "tomorrow" becomes today.

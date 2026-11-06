@@ -23,6 +23,8 @@ const SCHEDULE_FILE_VERSION: u64 = 1;
 
 /// Apps the "only while running" condition can name.
 pub const MAX_WHILE_RUNNING: usize = 20;
+/// Wi-Fi networks the "only on these networks" condition can name.
+pub const MAX_ON_NETWORKS: usize = 20;
 
 /// The window's ON/OFF button designs (design system). The first is the
 /// default.
@@ -88,10 +90,27 @@ pub struct Settings {
     pub min_battery: Option<u8>,
     /// Run only while one of these apps runs, by process name.
     pub while_running: Vec<String>,
+    /// Run only while on one of these Wi-Fi networks.
+    pub on_networks: Vec<String>,
+    /// Run only while a VPN is connected.
+    pub only_on_vpn: bool,
     /// Let the computer sleep while the screen is locked.
     pub release_when_locked: bool,
     /// Turn OFF after the computer sleeps.
     pub off_after_sleep: bool,
+    /// Keep a CSV of ON sessions on this computer (SPEC §15). Off until the
+    /// user turns it on.
+    pub activity_log: bool,
+    /// The work computer check ran once, at the first launch that showed the
+    /// window (SPEC §16).
+    pub managed_check_done: bool,
+    /// Run with the user's shell when it turns ON (SPEC §17). None: nothing.
+    pub on_command: Option<String>,
+    /// Run with the user's shell when it turns OFF.
+    pub off_command: Option<String>,
+    /// A local `.ics` file whose meetings turn it ON (SPEC §18). None:
+    /// calendar awareness is off.
+    pub calendar_file: Option<String>,
 }
 
 impl Default for Settings {
@@ -119,8 +138,15 @@ impl Default for Settings {
             only_on_ac: false,
             min_battery: None,
             while_running: Vec::new(),
+            on_networks: Vec::new(),
+            only_on_vpn: false,
             release_when_locked: false,
             off_after_sleep: true,
+            activity_log: false,
+            managed_check_done: false,
+            on_command: None,
+            off_command: None,
+            calendar_file: None,
         }
     }
 }
@@ -223,20 +249,19 @@ impl Settings {
                     .map(|percent| Some(percent as u8)),
             }),
             while_running: read.parse("whileRunning", Vec::new(), |value| {
-                let names = value.as_array()?;
-                if names.len() > MAX_WHILE_RUNNING {
-                    return None;
-                }
-                names
-                    .iter()
-                    .map(|name| {
-                        let name = name.as_str()?.trim();
-                        (!name.is_empty() && name.len() <= 100).then(|| name.to_string())
-                    })
-                    .collect()
+                name_list(value, MAX_WHILE_RUNNING)
             }),
+            on_networks: read.parse("onNetworks", Vec::new(), |value| {
+                name_list(value, MAX_ON_NETWORKS)
+            }),
+            only_on_vpn: read.bool("onlyOnVpn", defaults.only_on_vpn),
             release_when_locked: read.bool("releaseWhenLocked", defaults.release_when_locked),
             off_after_sleep: read.bool("offAfterSleep", defaults.off_after_sleep),
+            activity_log: read.bool("activityLog", defaults.activity_log),
+            managed_check_done: read.bool("managedCheckDone", defaults.managed_check_done),
+            on_command: read.parse("onCommand", None, command),
+            off_command: read.parse("offCommand", None, command),
+            calendar_file: read.parse("calendarFile", None, file_path),
         };
         (settings, fallbacks)
     }
@@ -311,6 +336,8 @@ impl Settings {
             only_on_ac: self.only_on_ac,
             min_battery: self.min_battery,
             while_running: self.while_running.clone(),
+            on_networks: self.on_networks.clone(),
+            only_on_vpn: self.only_on_vpn,
             release_when_locked: self.release_when_locked,
             off_after_sleep: self.off_after_sleep,
         }
@@ -347,6 +374,41 @@ impl Reader<'_> {
     fn bool(&mut self, key: &'static str, default: bool) -> bool {
         self.parse(key, default, Value::as_bool)
     }
+}
+
+/// A script line: blank is none, and at most 1000 characters.
+fn command(value: &Value) -> Option<Option<String>> {
+    match value {
+        Value::Null => Some(None),
+        Value::String(text) if text.trim().is_empty() => Some(None),
+        Value::String(text) if text.len() <= 1000 => Some(Some(text.trim().to_string())),
+        _ => None,
+    }
+}
+
+/// A file path, or nothing when blank.
+fn file_path(value: &Value) -> Option<Option<String>> {
+    match value {
+        Value::Null => Some(None),
+        Value::String(text) if text.trim().is_empty() => Some(None),
+        Value::String(text) if text.len() <= 4096 => Some(Some(text.trim().to_string())),
+        _ => None,
+    }
+}
+
+/// A list of at most `max` app or network names, each 1 to 100 characters.
+fn name_list(value: &Value, max: usize) -> Option<Vec<String>> {
+    let names = value.as_array()?;
+    if names.len() > max {
+        return None;
+    }
+    names
+        .iter()
+        .map(|name| {
+            let name = name.as_str()?.trim();
+            (!name.is_empty() && name.len() <= 100).then(|| name.to_string())
+        })
+        .collect()
 }
 
 fn method_name<S: serde::Serializer>(
@@ -427,8 +489,15 @@ mod tests {
             only_on_ac: true,
             min_battery: Some(20),
             while_running: vec!["zoom".into(), "Blender.exe".into()],
+            on_networks: vec!["Office 5G".into()],
+            only_on_vpn: true,
             release_when_locked: true,
             off_after_sleep: false,
+            activity_log: true,
+            managed_check_done: true,
+            on_command: Some("notify-send 'Unidle is on'".into()),
+            off_command: None,
+            calendar_file: Some("/home/me/work.ics".into()),
         };
         let (read, fallbacks) = Settings::from_json(&settings.to_json());
         assert_eq!(read, settings);
@@ -548,6 +617,25 @@ mod tests {
         assert!(settings.show_timers);
         assert!(!settings.schedule_enabled);
         assert!(settings.schedule_windows.is_empty());
+        assert!(settings.off_after_sleep);
+        assert!(!settings.activity_log);
+        assert!(!settings.managed_check_done);
+        assert_eq!(settings.on_command, None);
+        assert_eq!(settings.off_command, None);
+        assert_eq!(settings.calendar_file, None);
+    }
+
+    #[test]
+    fn a_blank_command_is_none() {
+        let (settings, fallbacks) =
+            Settings::from_json(r#"{"onCommand": "  ", "offCommand": " say off "}"#);
+        assert_eq!(settings.on_command, None);
+        assert_eq!(settings.off_command.as_deref(), Some("say off"));
+        assert!(fallbacks.is_empty());
+        let (_, fallbacks) = Settings::from_json(r#"{"onCommand": 3}"#);
+        assert_eq!(fallbacks, ["onCommand"]);
+        let (settings, _) = Settings::from_json(r#"{"calendarFile": " "}"#);
+        assert_eq!(settings.calendar_file, None);
     }
 
     #[test]

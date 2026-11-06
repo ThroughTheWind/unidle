@@ -683,3 +683,41 @@ input[type="date"]:invalid::-webkit-datetime-edit {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
+
+/* ── Work computer notice (SPEC §16) ───────────────────────────────────── */
+
+.notice {
+  justify-content: center;
+  gap: var(--space-4);
+  padding: var(--space-5);
+}
+
+.notice-title {
+  margin: 0;
+  font-size: var(--text-title);
+  font-weight: var(--weight-semibold);
+  line-height: var(--lh-tight);
+}
+
+.notice-text {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-body);
+  line-height: var(--lh-normal);
+}
+
+.notice-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* ── Scripts (SPEC §17) ────────────────────────────────────────────────── */
+
+.group-hint {
+  margin: 0;
+}
+
+.input.mono {
+  font-family: var(--font-mono);
+}

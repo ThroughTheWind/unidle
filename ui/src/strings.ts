@@ -23,6 +23,7 @@ export const strings = {
   turnOffFailed: "Couldn't turn off",
   notImplemented: "This system can't be kept awake yet",
   inputUnavailable: "Input simulation unavailable: keeping the system awake only.",
+  inputPolicy: "Your organization turned off input simulation: keeping the system awake only.",
   openAccessibility: "Open Accessibility settings",
 
   // Quick timers and the source line (SPEC SC-3, SC-4).
@@ -43,13 +44,14 @@ export const strings = {
     manual: "Manual",
     timer: "Timer",
     schedule: "Scheduled",
+    calendar: "Meeting",
   },
   /** "OFF at 18:00", "ON tomorrow at 09:00", "ON Mon at 09:00", "ON Nov 16 at 09:00". */
   nextChange: (on: boolean, when: string) => `${on ? "ON" : "OFF"} ${when}`,
   today: (time: string) => `at ${time}`,
   tomorrow: (time: string) => `tomorrow at ${time}`,
   onDay: (day: string, time: string) => `${day} at ${time}`,
-  paused: (until: string) => `Schedule paused until ${until}`,
+  paused: (until: string, byMeeting: boolean) => `${byMeeting ? "Meeting" : "Schedule"} paused until ${until}`,
   // Held by a condition (SPEC §14): wanted ON, paused for now.
   held: "Paused",
   holds: {
@@ -57,6 +59,8 @@ export const strings = {
     onBattery: "Paused on battery power",
     lowBattery: "Paused: battery low",
     appNotRunning: "Paused until a chosen app runs",
+    notOnNetwork: "Paused until on a chosen Wi-Fi network",
+    noVpn: "Paused until a VPN connects",
   },
   tomorrowShort: (time: string) => `tomorrow ${time}`,
 
@@ -136,10 +140,38 @@ export const strings = {
   minBatteryLevels: [10, 20, 30, 50],
   whileRunning: "Only while an app is running",
   whileRunningHint: "App names, separated by commas, such as zoom, blender. Empty means always.",
+  onNetworks: "Only on these Wi-Fi networks",
+  onNetworksHint: "Network names, separated by commas. Empty means any. Windows and macOS may need Location access to tell.",
+  onlyOnVpn: "Only while a VPN is connected",
+  onlyOnVpnHint: "Pauses when the VPN disconnects",
   releaseWhenLocked: "Let it sleep while locked",
   releaseWhenLockedHint: "Nudges always stop while the screen is locked",
   offAfterSleep: "Turn off after sleep",
   offAfterSleepHint: "When you choose Sleep or close the lid",
+  activityLogGroup: "Activity log",
+  activityLog: "Keep an activity log",
+  activityLogHint: "When it was on, why, and how many nudges. Stays on this computer.",
+  activityFile: "Logged sessions",
+  activityFileHint: "Save them as a CSV file, or delete them",
+  exportActivity: "Export…",
+  clearActivity: "Clear",
+  clearActivityConfirm: "Clear all?",
+  cleared: "Cleared",
+  calendar: "Calendar",
+  calendarHint:
+    "Turns on during the meetings in a calendar file on this computer, such as one your calendar app exports. Only read, never sent anywhere. All-day events and free time don't count.",
+  calendarFile: "Calendar file",
+  calendarNone: "None",
+  /** "work.ics · 12 events" */
+  calendarRead: (name: string, events: number) => `${name} · ${events} ${events === 1 ? "event" : "events"}`,
+  calendarError: (name: string, error: string) => `${name} · Can't read it: ${error}`,
+  chooseCalendar: "Choose…",
+  removeCalendar: "Remove",
+  scripts: "Scripts",
+  scriptsHint:
+    "A command for your shell, run as you, each time it turns on or off. It gets UNIDLE_EVENT and UNIDLE_SOURCE. Leave empty for none.",
+  onCommand: "When it turns on",
+  offCommand: "When it turns off",
   system: "System",
   keepDisplayOn: "Keep the display on",
   launchAtLogin: "Launch at login",
@@ -153,6 +185,18 @@ export const strings = {
   shortcutRecording: "Press keys…",
   shortcutNeedsModifier: "Use at least one of Ctrl, Alt, Shift or Super with a key",
   shortcutClear: "Clear",
+
+  // Work computers (SPEC §16). Never a "safe" verdict: no check can see an organization's rules.
+  noticeTitle: "Is this a work computer?",
+  noticeText:
+    "This computer appears to be managed by an organization. Its IT team can likely see the apps you install and may monitor activity. Check your organization's policy before using Unidle here.",
+  noticePowerOnly: "Use power-only mode",
+  noticeContinue: "Continue",
+  noticeLearnMore: "Learn more",
+  workComputer: "Work computer",
+  workComputerHint: "Check for signs that an organization manages this computer",
+  workComputerCheck: "Check",
+  workComputerNone: "No sign found. A work computer can still have its own rules.",
   version: (version: string) => `Unidle ${version}`,
   // Icon buttons in the bar. Both open a page in the browser; the app itself makes no network request (SPEC NFR-2).
   checkUpdates: "Check for new versions",

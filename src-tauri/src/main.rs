@@ -1,12 +1,17 @@
 // No console window on Windows in release builds.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod activity_log;
 mod app_icon;
+mod calendar;
 mod cli;
+mod links;
+mod scripts;
 mod settings;
 mod strings;
 mod tray;
 mod window;
+mod work_computer;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
@@ -17,8 +22,9 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, RunEvent, State, WindowEvent};
 use tauri_plugin_global_shortcut::ShortcutState;
 use tauri_plugin_notification::NotificationExt as _;
+use unidle_core::activity::source_name;
 use unidle_core::{
-    Controller, InputUnavailable, NudgeKey, Settings, Source, Status, SystemAdapter, Ticker,
+    Controller, InputUnavailable, NudgeKey, Settings, Status, SystemAdapter, Ticker,
 };
 
 /// Emitted to the window whenever the state changes outside it, such as
@@ -65,11 +71,15 @@ struct StatusDto {
     nudging: bool,
     /// Why nudges cannot be sent, if they cannot (SPEC PB-2).
     input_unavailable: Option<&'static str>,
-    /// `"manual"`, `"timer"` or `"schedule"` while ON (SPEC SC-4).
+    /// `"manual"`, `"timer"`, `"schedule"` or `"calendar"` while ON (SPEC
+    /// SC-4, §18).
     source: Option<&'static str>,
     next_change: Option<NextChangeDto>,
-    /// Milliseconds since the Unix epoch, while a manual OFF pauses a window.
+    /// Milliseconds since the Unix epoch, while a manual OFF pauses a window
+    /// or a meeting.
     paused_until: Option<i64>,
+    /// `"schedule"` or `"calendar"`: what `paused_until` paused.
+    paused_by: Option<&'static str>,
     /// ON without nudges, as `unidle on` asks (SPEC §13).
     power_only: bool,
     /// Wanted ON, held OFF by a condition (SPEC §14).
@@ -82,6 +92,8 @@ struct NextChangeDto {
     /// Milliseconds since the Unix epoch, for `new Date()`.
     at: i64,
     on: bool,
+    /// What turns it ON then, as in `source`.
+    source: Option<&'static str>,
 }
 
 impl From<Status> for StatusDto {
@@ -99,17 +111,16 @@ impl From<Status> for StatusDto {
                     InputUnavailable::Wayland => "wayland",
                     InputUnavailable::NoDisplay => "noDisplay",
                     InputUnavailable::Unsupported => "unsupported",
+                    InputUnavailable::Policy => "policy",
                 }),
-            source: status.source.map(|source| match source {
-                Source::Manual => "manual",
-                Source::Timer => "timer",
-                Source::Schedule => "schedule",
-            }),
+            source: status.source.map(source_name),
             next_change: status.next_change.map(|change| NextChangeDto {
                 at: change.at.as_millisecond(),
                 on: change.on,
+                source: change.source.map(source_name),
             }),
             paused_until: status.paused_until.map(Timestamp::as_millisecond),
+            paused_by: status.paused_by.map(source_name),
             power_only: status.power_only,
             held: status.held.map(unidle_core::Hold::name),
         }
@@ -181,7 +192,7 @@ fn notify(app: &AppHandle, status: &Status) {
 
 /// A timer or the schedule changed the state on its own: every surface
 /// catches up.
-fn on_automatic_change(app: &AppHandle) {
+pub(crate) fn on_automatic_change(app: &AppHandle) {
     let status = app.state::<App>().controller().status();
     tray::refresh(app, &status);
     let _ = app.emit(STATUS_EVENT, StatusDto::from(status));
@@ -360,6 +371,8 @@ fn nudge_keys() -> Vec<&'static str> {
 /// makes no network request (SPEC NFR-2).
 const RELEASES_URL: &str = "https://github.com/ThroughTheWind/unidle/releases";
 const WEBSITE_URL: &str = "https://throughthewind.github.io/unidle/";
+/// What IT can see, and the policy it can set (SPEC §16).
+const WORK_COMPUTER_URL: &str = "https://github.com/ThroughTheWind/unidle#on-a-work-computer";
 
 #[tauri::command]
 fn open_link(app: AppHandle, link: String) -> Result<(), String> {
@@ -367,6 +380,7 @@ fn open_link(app: AppHandle, link: String) -> Result<(), String> {
     let url = match link.as_str() {
         "releases" => RELEASES_URL,
         "website" => WEBSITE_URL,
+        "workComputer" => WORK_COMPUTER_URL,
         _ => return Err(format!("unknown link: {link}")),
     };
     app.opener()
@@ -443,6 +457,7 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     }
     // The tray was built before the settings were read.
     app_icon::apply(&handle);
+    calendar::start(&handle);
     tray::apply_click(&handle, loaded.tray_click_toggles);
     tray::refresh(&handle, &app.state::<App>().controller().status());
     if loaded.start_on() {
@@ -459,6 +474,8 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     if let Err(error) = unidle_core::remote::serve(move |request| cli::handle(&remote, request)) {
         eprintln!("command line: {error}");
     }
+
+    links::listen(&handle);
 
     // Keeps the tray's "ON for …" and next change lines current.
     let refresher = handle.clone();
@@ -499,6 +516,10 @@ fn main() -> std::process::ExitCode {
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             window::show(app)
         }))
+        // `unidle://` links (SPEC §13). On Windows and Linux the OS starts
+        // the binary with the link, and `cli::run` above answers it; on
+        // macOS the running app gets it as an event.
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
         // Only for the schedule's import and export dialogs, opened from
@@ -540,6 +561,12 @@ fn main() -> std::process::ExitCode {
             take_timer_picker_request,
             export_schedule,
             import_schedule,
+            activity_log::export_activity_log,
+            activity_log::clear_activity_log,
+            calendar::choose_calendar_file,
+            calendar::calendar_info,
+            work_computer::take_managed_notice,
+            work_computer::check_managed,
             get_settings,
             update_settings,
             nudge_keys,

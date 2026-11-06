@@ -43,5 +43,14 @@
     ],
     "category": "Utility",
     "license": "MIT"
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": [
+          "unidle"
+        ]
+      }
+    }
   }
 }
