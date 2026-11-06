@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| Status | Draft v0.1 |
-| Date | 2026-11-03 |
+| Status | Draft v0.2 |
+| Date | 2026-11-04 |
 | Companion to | [SPEC.md](SPEC.md) |
 
 Each phase ships a usable, released version. Phases are ordered by value and risk, not by calendar dates. Size estimates are rough, for one part-time developer: **S** is under a week, **M** is 1 to 3 weeks, **L** is more than 3 weeks.
@@ -17,8 +17,8 @@ Each phase ships a usable, released version. Phases are ordered by value and ris
 | 0 | — | Foundations | Repo, CI, release pipeline, platform adapter proof of concept |
 | 1 | 1.0 | **ON/OFF MVP** | Tray app with one toggle, power assertion, pointer and keystroke nudges |
 | 2 | 1.x | **Timers and scheduling** | Quick timers, weekly schedules, automatic ON/OFF |
-| 3 | 2.0 | **Rich keystroke and activity simulation** | Configurable key patterns, typing simulation, activity profiles |
-| 4 | 2.x | **Smart conditions and integrations** | Context rules (power, apps, network, calendar), CLI, automation hooks |
+| 3 | — | ~~Rich keystroke and activity simulation~~ | **Removed** (2026-11-04). See below. |
+| 4 | 2.0 | **Smart conditions and integrations** | CLI, context rules (power, apps, network, calendar), automation hooks |
 | 5 | 3.0 | **Polish and ecosystem** | Auto-update, localization, plugins, signed stores |
 
 ---
@@ -68,25 +68,13 @@ Each phase ships a usable, released version. Phases are ordered by value and ris
 | "Next change" preview in the tray ("OFF at 18:00") | S | Should |
 | Import/export schedules as a file | S | Could |
 
-## Phase 3: Rich keystroke and activity simulation (v2.0)
+## Phase 3: removed
 
-**Goal:** move beyond a single nudge to configurable, more realistic activity, without ever typing into the user's work by accident.
+Phase 3 planned richer keyboard and activity simulation: custom key combos and sequences, human-like typing into a scratch pad or a chosen window, pointer paths, scroll nudges and activity profiles. **It was dropped on 2026-11-04 and will not be built**, in the core or as a plugin.
 
-**Safety rule for this whole phase:** anything that produces printable characters may only target a **window owned by the app** (a "scratch pad"), or a window the user picks explicitly at the start of each session. It must never type into whatever window happens to have focus.
+Why: simulated typing and "realistic" activity are built to make a person look present to monitoring tools, which is the use most likely to get users disciplined on work machines and to get Unidle described as an evasion tool. The Phase 1 nudges (a 1 px pointer move and one non-printing key) stay as they are. The phase number is kept so that "Phase 4" and "Phase 5" keep meaning what they meant.
 
-| Feature | Size | Priority | Notes |
-|---|---|---|---|
-| Custom key nudge: choose any non-printing key or modifier combo from an allowlist | S | Must | Blocks dangerous combos (e.g. `Alt+F4`, `Ctrl+W`, `Cmd+Q`, `Win+L`). |
-| Key sequences: short ordered patterns of non-printing keys | S | Should | E.g. `Shift, Shift, F15`. |
-| **Typing simulation** in a built-in scratch pad: types random words or a user text file at a human-like rate (variable delay, pauses, typos and backspaces) | M | Should | Useful for apps that measure keyboard activity. |
-| Typing into a user-chosen target window, with an explicit per-session confirmation and an always-visible "typing" indicator | M | Could | Stops instantly on any real input. |
-| Pointer paths: smooth, curved, human-like movements within a small radius, returning to origin | M | Should | |
-| Scroll nudge (scroll down 1 line, then up 1 line) | S | Could | |
-| **Activity profiles**: presets combining interval, jitter, method mix and typing rate ("Minimal", "Reader", "Typist", "Presenter") | M | Should | |
-| Randomized intervals (Poisson-like) instead of fixed interval and jitter | S | Could | |
-| Panic stop: a dedicated global hotkey, plus auto-stop on any real input during typing | S | Must | Required before any printable typing ships. |
-
-## Phase 4: Smart conditions and integrations (v2.x)
+## Phase 4: Smart conditions and integrations (v2.0)
 
 **Goal:** the app decides on its own when activity makes sense.
 
@@ -97,10 +85,12 @@ Each phase ships a usable, released version. Phases are ordered by value and ris
 | Conditions: only on a given Wi-Fi network or when a VPN is connected | M | Could |
 | Stop when the screen is locked or the user chooses Sleep | S | Must |
 | Calendar awareness: ON during meetings from a local `.ics` file or URL (opt-in network) | M | Could |
-| Full CLI: `unidle on|off|status|timer 30m|profile reader` | S | Should |
+| CLI on the same binary: `unidle on|off|status|timer 30m`, power-only unless asked otherwise, always visible in the tray (no hidden background mode) | S | Must |
 | Local automation hooks: URL scheme (`unidle://on`), Apple Shortcuts, Windows PowerShell module | M | Could |
 | Run-on-event scripts: user commands run on ON/OFF (opt-in, local only) | S | Could |
-| Activity log: local history of sessions (start, stop, source, duration) with CSV export | S | Could |
+| Activity log: local history of sessions (start, stop, source, duration) with CSV export | S | Should |
+| Managed-device notice: a one-time, read-only local check (domain or MDM enrollment) that suggests power-only mode, never a "safe" score | S | Should |
+| Admin policy: an IT-set registry key or managed preference can turn off input nudges, and the app says so | S | Could |
 
 ## Phase 5: Polish and ecosystem (v3.0)
 
@@ -111,7 +101,6 @@ Each phase ships a usable, released version. Phases are ordered by value and ris
 | Package managers: winget, Homebrew cask, Flathub, AUR, Snap | M | Should |
 | Localization: French first, then community translations | S | Should |
 | Themes and icon packs following the design system | S | Could |
-| Plugin API for custom activity methods | L | Could |
 | Multi-monitor and multi-seat awareness | M | Could |
 | Optional companion: remote toggle from phone over the local network | L | Won't (for now) |
 
@@ -131,7 +120,7 @@ Ideas worth keeping that don't fit a phase yet:
 
 ## Cross-cutting principles (all phases)
 
-1. **Never harm the user's work.** No clicks, no focus changes, no printable characters outside an approved target.
+1. **Never harm the user's work.** No clicks, no focus changes, no printable characters, ever.
 2. **Always visible and honest.** The app never hides from the OS, the tray or task managers.
 3. **Local first.** No network in the core. Any networked feature is opt-in and documented.
 4. **OFF is always safe.** Turning OFF, quitting or crashing restores normal OS behavior.
@@ -139,6 +128,6 @@ Ideas worth keeping that don't fit a phase yet:
 
 ## Open questions
 
-1. Should printable typing simulation ship at all, or stay a plugin outside the core app?
+1. ~~Should printable typing simulation ship at all, or stay a plugin outside the core app?~~ Resolved: no. Phase 3 is removed.
 2. Is calendar integration worth adding network access for, even as opt-in?
 3. Which package managers matter most to you for the first release?
