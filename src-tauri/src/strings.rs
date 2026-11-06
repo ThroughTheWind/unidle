@@ -33,6 +33,37 @@ pub const TIMER_UNTIL: &str = "Until a time…";
 pub const SCHEDULE_FILE_NAME: &str = "unidle-schedule.json";
 pub const SCHEDULE_FILE_FILTER: &str = "Unidle schedule";
 
+pub const CLI_NOT_RUNNING: &str = "Activity: OFF (Unidle isn't running)";
+pub const CLI_START_FAILED: &str = "Unidle didn't start, or an older version is running that has no command line. Quit it and try again.";
+pub const CLI_HOW_TO_STOP: &str = "Stop it with `unidle off`, or from the tray.";
+pub const CLI_POWER_ONLY: &str = "Power only: no input nudges";
+pub const CLI_NUDGING: &str = "Input nudges: on";
+pub const CLI_NOT_NUDGING: &str = "Input nudges: off";
+
+/// The status for `unidle status` (SPEC §13): the tray's lines, then
+/// whether nudges are sent.
+pub fn cli_status(status: &Status, now: &Zoned) -> String {
+    let mut lines = vec![if status.is_on() {
+        status_on(status.elapsed)
+    } else {
+        STATUS_OFF.to_string()
+    }];
+    lines.extend(detail(status, now));
+    if status.is_on() {
+        lines.push(
+            if status.power_only {
+                CLI_POWER_ONLY
+            } else if status.nudging {
+                CLI_NUDGING
+            } else {
+                CLI_NOT_NUDGING
+            }
+            .to_string(),
+        );
+    }
+    lines.join("\n")
+}
+
 /// "Activity: ON for 1 h 12 min" (SPEC FR-5).
 pub fn status_on(elapsed: Duration) -> String {
     let minutes = elapsed.as_secs() / 60;
@@ -122,6 +153,7 @@ mod tests {
                 on,
             }),
             paused_until: None,
+            power_only: false,
         }
     }
 
@@ -166,6 +198,20 @@ mod tests {
         assert_eq!(
             detail(paused).as_deref(),
             Some("Schedule paused until 18:00")
+        );
+    }
+
+    #[test]
+    fn cli_status_adds_the_nudges_line_while_on() {
+        let now = zoned("2026-11-02T17:00");
+        assert_eq!(cli_status(&status(None, None), &now), "Activity: OFF");
+        let on = Status {
+            power_only: true,
+            ..status(Some(Source::Timer), Some(("2026-11-02T18:00", false)))
+        };
+        assert_eq!(
+            cli_status(&on, &now),
+            "Activity: ON for less than a minute\nTimer · OFF at 18:00\nPower only: no input nudges"
         );
     }
 

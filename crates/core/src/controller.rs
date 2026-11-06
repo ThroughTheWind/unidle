@@ -35,6 +35,9 @@ pub struct Status {
     pub next_change: Option<NextChange>,
     /// When a manual OFF paused a schedule window, the time the window ends.
     pub paused_until: Option<Timestamp>,
+    /// This ON was asked for without nudges, such as by `unidle on` (SPEC
+    /// §13): the power assertion only, whatever the settings say.
+    pub power_only: bool,
 }
 
 impl Status {
@@ -85,6 +88,8 @@ pub struct Controller<A: PlatformAdapter> {
     automation: Automation,
     /// Set when a tick changed the state, until [`Self::take_change`].
     changed: bool,
+    /// No nudges until the next OFF (SPEC §13).
+    power_only: bool,
     events: VecDeque<Event>,
 }
 
@@ -101,6 +106,7 @@ impl<A: PlatformAdapter> Controller<A> {
             planner: Planner::new(config),
             automation: Automation::default(),
             changed: false,
+            power_only: false,
             events: VecDeque::with_capacity(EVENT_LOG_CAPACITY),
         }
     }
@@ -117,13 +123,28 @@ impl<A: PlatformAdapter> Controller<A> {
     }
 
     pub fn set_manual_at(&mut self, on: bool, now: &Zoned) -> Result<(), AdapterError> {
-        let previous = self.automation.clone();
+        self.set_manual_with(on, false, now)
+    }
+
+    /// Like [`Self::set_manual_at`]. With `power_only`, an ON holds the power
+    /// assertion without nudges until the next OFF; without it, nudges follow
+    /// the settings again. The latest action decides.
+    pub fn set_manual_with(
+        &mut self,
+        on: bool,
+        power_only: bool,
+        now: &Zoned,
+    ) -> Result<(), AdapterError> {
+        let previous = (self.automation.clone(), self.power_only);
         self.automation
             .set_manual(on, now.timestamp(), now.time_zone());
+        if on {
+            self.power_only = power_only;
+        }
         let result = self.sync(now);
         if result.is_err() && on {
             // A failed ON leaves things as they were, not a pending ON.
-            self.automation = previous;
+            (self.automation, self.power_only) = previous;
         }
         result
     }
@@ -134,14 +155,26 @@ impl<A: PlatformAdapter> Controller<A> {
     }
 
     pub fn start_timer_at(&mut self, until: Timestamp, now: &Zoned) -> Result<(), AdapterError> {
+        self.start_timer_with(until, false, now)
+    }
+
+    /// Like [`Self::start_timer_at`], with `power_only` as in
+    /// [`Self::set_manual_with`].
+    pub fn start_timer_with(
+        &mut self,
+        until: Timestamp,
+        power_only: bool,
+        now: &Zoned,
+    ) -> Result<(), AdapterError> {
         if until <= now.timestamp() {
             return Err(AdapterError("The timer must end in the future".into()));
         }
-        let previous = self.automation.clone();
+        let previous = (self.automation.clone(), self.power_only);
         self.automation.start_timer(until);
+        self.power_only = power_only;
         let result = self.sync(now);
         if result.is_err() {
-            self.automation = previous;
+            (self.automation, self.power_only) = previous;
         }
         result
     }
@@ -193,6 +226,7 @@ impl<A: PlatformAdapter> Controller<A> {
                 // assertion when the process exits, and the UI must not
                 // claim to be ON.
                 self.state = State::Off;
+                self.power_only = false;
                 self.planner.stop();
                 self.log(Instant::now(), EventKind::TurnedOff);
                 self.adapter.release()?;
@@ -219,6 +253,7 @@ impl<A: PlatformAdapter> Controller<A> {
             nudging: source.is_some() && self.nudges_possible(capabilities),
             next_change: self.automation.next_change(at, tz),
             paused_until: self.automation.paused_until(at, tz),
+            power_only: source.is_some() && self.power_only,
         }
     }
 
@@ -323,7 +358,7 @@ impl<A: PlatformAdapter> Controller<A> {
     }
 
     fn nudges_possible(&self, capabilities: Capabilities) -> bool {
-        self.planner.config().enabled && capabilities.input_nudge
+        self.planner.config().enabled && capabilities.input_nudge && !self.power_only
     }
 
     fn log(&mut self, at: Instant, kind: EventKind) {
@@ -542,6 +577,47 @@ mod tests {
         assert!(controller.status().is_on());
         assert!(!controller.status().nudging);
         assert!(calls.borrow().nudges.is_empty());
+    }
+
+    #[test]
+    fn power_only_on_sends_no_nudges_until_the_next_off() {
+        let adapter = FakeAdapter::default();
+        let calls = adapter.calls.clone();
+        let mut controller = Controller::new(adapter);
+        let now = Zoned::now();
+
+        controller.set_manual_with(true, true, &now).unwrap();
+        let start = Instant::now();
+        controller.tick(start + Duration::from_secs(600));
+        assert!(calls.borrow().nudges.is_empty());
+        let status = controller.status();
+        assert!(status.is_on() && status.power_only && !status.nudging);
+        assert_eq!(calls.borrow().acquire, 1);
+
+        // OFF clears it: the next ON follows the settings.
+        controller.turn_off().unwrap();
+        assert!(!controller.status().power_only);
+        controller.turn_on().unwrap();
+        assert!(controller.status().nudging);
+        controller.tick(Instant::now() + Duration::from_secs(73));
+        assert_eq!(calls.borrow().nudges.len(), 1);
+    }
+
+    #[test]
+    fn the_latest_on_decides_power_only() {
+        let mut controller = Controller::new(FakeAdapter::default());
+        let now = Zoned::now();
+        controller.turn_on().unwrap();
+        controller.set_manual_with(true, true, &now).unwrap();
+        assert!(controller.status().power_only);
+        controller.set_manual_with(true, false, &now).unwrap();
+        assert!(!controller.status().power_only);
+
+        let until = now.timestamp() + jiff::SignedDuration::from_mins(30);
+        controller.start_timer_with(until, true, &now).unwrap();
+        let status = controller.status();
+        assert_eq!(status.source, Some(Source::Timer));
+        assert!(status.power_only && !status.nudging);
     }
 
     #[test]

@@ -4369,6 +4369,7 @@ name = "unidle-core"
 version = "0.2.0"
 dependencies = [
  "jiff",
+ "libc",
  "serde",
  "serde_json",
  "windows-sys 0.61.2",
