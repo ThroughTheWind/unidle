@@ -9,6 +9,7 @@ use serde::ser::SerializeSeq as _;
 use serde_json::{Map, Value};
 
 use crate::adapter::NudgeKey;
+use crate::conditions::Conditions;
 use crate::nudge::{DEFAULT_INTERVAL, MAX_INTERVAL, MIN_INTERVAL, NudgeConfig, NudgeMethod};
 use crate::platform::PowerOptions;
 use crate::schedule::{Schedule, TimeWindow, Weekdays, format_time, parse_time};
@@ -19,6 +20,9 @@ pub const MAX_SCHEDULE_WINDOWS: usize = 50;
 pub const MAX_SKIP_DATES: usize = 400;
 /// The format of schedule files, so a later format can be told apart.
 const SCHEDULE_FILE_VERSION: u64 = 1;
+
+/// Apps the "only while running" condition can name.
+pub const MAX_WHILE_RUNNING: usize = 20;
 
 /// The window's ON/OFF button designs (design system). The first is the
 /// default.
@@ -78,6 +82,16 @@ pub struct Settings {
     /// `"2026-12-25"` each: days the schedule doesn't run.
     #[serde(serialize_with = "dates_json")]
     pub skip_dates: Vec<Date>,
+    /// Conditions (SPEC §14). Run only while plugged in.
+    pub only_on_ac: bool,
+    /// Pause on battery below this percent, 1 to 99.
+    pub min_battery: Option<u8>,
+    /// Run only while one of these apps runs, by process name.
+    pub while_running: Vec<String>,
+    /// Let the computer sleep while the screen is locked.
+    pub release_when_locked: bool,
+    /// Turn OFF after the computer sleeps.
+    pub off_after_sleep: bool,
 }
 
 impl Default for Settings {
@@ -102,6 +116,11 @@ impl Default for Settings {
             schedule_enabled: false,
             schedule_windows: Vec::new(),
             skip_dates: Vec::new(),
+            only_on_ac: false,
+            min_battery: None,
+            while_running: Vec::new(),
+            release_when_locked: false,
+            off_after_sleep: true,
         }
     }
 }
@@ -195,6 +214,29 @@ impl Settings {
                 dates.dedup();
                 Some(dates)
             }),
+            only_on_ac: read.bool("onlyOnAc", defaults.only_on_ac),
+            min_battery: read.parse("minBattery", None, |value| match value {
+                Value::Null => Some(None),
+                value => value
+                    .as_u64()
+                    .filter(|percent| (1..=99).contains(percent))
+                    .map(|percent| Some(percent as u8)),
+            }),
+            while_running: read.parse("whileRunning", Vec::new(), |value| {
+                let names = value.as_array()?;
+                if names.len() > MAX_WHILE_RUNNING {
+                    return None;
+                }
+                names
+                    .iter()
+                    .map(|name| {
+                        let name = name.as_str()?.trim();
+                        (!name.is_empty() && name.len() <= 100).then(|| name.to_string())
+                    })
+                    .collect()
+            }),
+            release_when_locked: read.bool("releaseWhenLocked", defaults.release_when_locked),
+            off_after_sleep: read.bool("offAfterSleep", defaults.off_after_sleep),
         };
         (settings, fallbacks)
     }
@@ -262,6 +304,17 @@ impl Settings {
             Some(&"scheduleWindows") => Err("A time in this file is invalid".into()),
             Some(_) => Err("A day off in this file is invalid".into()),
         }
+    }
+
+    pub fn conditions(&self) -> Conditions {
+        Conditions {
+            only_on_ac: self.only_on_ac,
+            min_battery: self.min_battery,
+            while_running: self.while_running.clone(),
+            release_when_locked: self.release_when_locked,
+            off_after_sleep: self.off_after_sleep,
+        }
+        .cleaned()
     }
 
     /// Whether the app should turn ON as it starts.
@@ -371,10 +424,29 @@ mod tests {
                 TimeWindow::new(Weekdays::from_names(["sat"]).unwrap(), 22 * 60, 1440).unwrap(),
             ],
             skip_dates: vec![jiff::civil::date(2026, 12, 25)],
+            only_on_ac: true,
+            min_battery: Some(20),
+            while_running: vec!["zoom".into(), "Blender.exe".into()],
+            release_when_locked: true,
+            off_after_sleep: false,
         };
         let (read, fallbacks) = Settings::from_json(&settings.to_json());
         assert_eq!(read, settings);
         assert!(fallbacks.is_empty());
+    }
+
+    #[test]
+    fn conditions_read_leniently() {
+        let (settings, fallbacks) = Settings::from_json(
+            r#"{"minBattery": 0, "whileRunning": ["zoom", 3], "onlyOnAc": "yes"}"#,
+        );
+        assert_eq!(settings.min_battery, None);
+        assert!(settings.while_running.is_empty());
+        assert!(!settings.only_on_ac);
+        assert_eq!(fallbacks, ["onlyOnAc", "minBattery", "whileRunning"]);
+        let (settings, _) = Settings::from_json(r#"{"minBattery": null}"#);
+        assert_eq!(settings.min_battery, None);
+        assert_eq!(Settings::default().conditions(), Conditions::new());
     }
 
     #[test]

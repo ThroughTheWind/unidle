@@ -1,6 +1,8 @@
 use std::fmt;
 use std::time::Duration;
 
+use crate::platform::PowerSource;
+
 /// Why the input nudge cannot run. The app still turns ON with the power
 /// assertion alone and tells the user (SPEC PB-2).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -133,6 +135,27 @@ pub trait PlatformAdapter {
     /// or `None` when the OS cannot say.
     fn idle_time(&mut self) -> Option<Duration>;
     fn capabilities(&self) -> Capabilities;
+
+    /// Whether the screen is locked, for the conditions (SPEC §14). `None`
+    /// when the OS can't say.
+    fn screen_locked(&mut self) -> Option<bool> {
+        None
+    }
+
+    fn power_source(&mut self) -> Option<PowerSource> {
+        None
+    }
+
+    /// Running processes, normalized with
+    /// [`crate::platform::normalize_process_name`].
+    fn process_names(&mut self) -> Option<Vec<String>> {
+        None
+    }
+
+    /// The total time asleep since the computer started.
+    fn time_asleep(&mut self) -> Option<Duration> {
+        None
+    }
 }
 
 /// Does nothing and reports no capabilities. Useful in tests and on an OS

@@ -6,6 +6,9 @@ use std::time::Duration;
 
 use crate::adapter::{AdapterError, InputUnavailable, NudgeKey, NudgeKind};
 
+pub use environment::{Environment, PowerSource, normalize_process_name};
+
+mod environment;
 #[cfg(target_os = "linux")]
 mod linux;
 #[cfg(target_os = "macos")]

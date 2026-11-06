@@ -208,12 +208,16 @@ fn print(request: &Request, response: &Response, json: bool) -> ExitCode {
     if let Some(text) = &response.text {
         println!("{text}");
     }
-    let on = response
-        .status
-        .as_ref()
+    let status = response.status.as_ref();
+    let on = status
         .and_then(|status| status.get("on"))
         .and_then(serde_json::Value::as_bool)
         == Some(true);
+    // Held by a condition is still ON as far as stopping it goes.
+    let held = status
+        .and_then(|status| status.get("held"))
+        .is_some_and(|held| !held.is_null());
+    let on = on || held;
     if on && matches!(request, Request::On { .. } | Request::Timer { .. }) {
         println!("{}", strings::CLI_HOW_TO_STOP);
     }

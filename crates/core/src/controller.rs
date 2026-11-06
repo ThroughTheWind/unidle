@@ -5,6 +5,7 @@ use jiff::{Timestamp, Zoned};
 
 use crate::adapter::{AdapterError, Capabilities, NudgeKind, PlatformAdapter};
 use crate::automation::{Automation, NextChange};
+use crate::conditions::{Conditions, Hold, Reading};
 use crate::nudge::{Due, NudgeConfig, Planner};
 use crate::schedule::Schedule;
 
@@ -21,7 +22,14 @@ pub enum Source {
 #[derive(Clone, Copy, Debug)]
 enum State {
     Off,
-    On { source: Source, since: Instant },
+    On {
+        source: Source,
+        since: Instant,
+    },
+    /// Wanted ON, but a condition holds it OFF for now (SPEC §14).
+    Held {
+        hold: Hold,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -38,11 +46,18 @@ pub struct Status {
     /// This ON was asked for without nudges, such as by `unidle on` (SPEC
     /// §13): the power assertion only, whatever the settings say.
     pub power_only: bool,
+    /// Wanted ON, but held OFF by a condition. `source` is `None` meanwhile.
+    pub held: Option<Hold>,
 }
 
 impl Status {
     pub fn is_on(&self) -> bool {
         self.source.is_some()
+    }
+
+    /// ON, or wanted ON and held by a condition: what the toggle shows.
+    pub fn is_wanted(&self) -> bool {
+        self.is_on() || self.held.is_some()
     }
 }
 
@@ -60,6 +75,12 @@ pub enum EventKind {
     /// A timer or the schedule wanted ON and the OS refused. Retried on the
     /// next tick.
     AutomationFailed(String),
+    /// A condition paused it (SPEC §14).
+    Held(Hold),
+    /// No nudge while the screen is locked.
+    SkippedLocked,
+    /// The computer slept while ON, so it turned OFF.
+    OffAfterSleep,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -78,6 +99,10 @@ const IDLE_WAIT: Duration = Duration::from_secs(60);
 /// can stop while the computer sleeps, so this bounds how late a change is
 /// noticed after waking up; the wall clock decides what the change is.
 const WATCH_WAIT: Duration = Duration::from_secs(15);
+/// How often the conditions are read while ON or held.
+const CONDITION_WAIT: Duration = Duration::from_secs(5);
+/// More time asleep than this between two ticks means the computer slept.
+const SLEPT: Duration = Duration::from_secs(20);
 
 /// Owns the `OFF -> ON(source) -> OFF` state machine, its adapter, the nudge
 /// schedule, and who decides between manual, timer and schedule.
@@ -90,6 +115,9 @@ pub struct Controller<A: PlatformAdapter> {
     changed: bool,
     /// No nudges until the next OFF (SPEC §13).
     power_only: bool,
+    conditions: Conditions,
+    /// The OS's time asleep at the last tick while ON or held.
+    asleep_mark: Option<Duration>,
     events: VecDeque<Event>,
 }
 
@@ -107,6 +135,8 @@ impl<A: PlatformAdapter> Controller<A> {
             automation: Automation::default(),
             changed: false,
             power_only: false,
+            conditions: Conditions::default(),
+            asleep_mark: None,
             events: VecDeque::with_capacity(EVENT_LOG_CAPACITY),
         }
     }
@@ -194,15 +224,73 @@ impl<A: PlatformAdapter> Controller<A> {
         self.sync(now)
     }
 
+    pub fn conditions(&self) -> &Conditions {
+        &self.conditions
+    }
+
+    /// Takes effect at once: a condition that now holds pauses it, one that
+    /// no longer does resumes it.
+    pub fn set_conditions(&mut self, conditions: Conditions) -> Result<(), AdapterError> {
+        self.conditions = conditions.cleaned();
+        self.sync(&Zoned::now())
+    }
+
+    /// Reads only what the set conditions need.
+    fn read_hold(&mut self) -> Option<Hold> {
+        if !self.conditions.needs_watching() {
+            return None;
+        }
+        let conditions = &self.conditions;
+        let reading = Reading {
+            locked: if conditions.release_when_locked {
+                self.adapter.screen_locked()
+            } else {
+                None
+            },
+            power: if conditions.only_on_ac || conditions.min_battery.is_some() {
+                self.adapter.power_source()
+            } else {
+                None
+            },
+            processes: if conditions.while_running.is_empty() {
+                None
+            } else {
+                self.adapter.process_names()
+            },
+        };
+        crate::conditions::hold(&self.conditions, &reading)
+    }
+
     /// Brings the state in line with what the user, a timer or the schedule
-    /// wants now.
+    /// wants now, and what the conditions allow.
     fn sync(&mut self, now: &Zoned) -> Result<(), AdapterError> {
         let at = now.timestamp();
         self.automation.expire(at);
         let wanted = self.automation.decide(at, now.time_zone()).source;
-        match (self.state, wanted) {
-            (State::Off, None) => {}
-            (State::Off, Some(source)) => {
+        let hold = if wanted.is_some() {
+            self.read_hold()
+        } else {
+            None
+        };
+        match (self.state, wanted, hold) {
+            (State::Off, None, _) => {}
+            (State::Held { .. }, None, _) => {
+                self.state = State::Off;
+                self.power_only = false;
+            }
+            (State::Off | State::Held { .. }, Some(_), Some(hold)) => {
+                if !matches!(self.state, State::Held { hold: held } if held == hold) {
+                    self.log(Instant::now(), EventKind::Held(hold));
+                }
+                self.state = State::Held { hold };
+            }
+            (State::On { .. }, Some(_), Some(hold)) => {
+                self.state = State::Held { hold };
+                self.planner.stop();
+                self.log(Instant::now(), EventKind::Held(hold));
+                self.adapter.release()?;
+            }
+            (State::Off | State::Held { .. }, Some(source), None) => {
                 self.adapter.acquire()?;
                 let started = Instant::now();
                 self.state = State::On {
@@ -212,7 +300,7 @@ impl<A: PlatformAdapter> Controller<A> {
                 self.planner.start(started);
                 self.log(started, EventKind::TurnedOn(source));
             }
-            (State::On { source, since }, Some(wanted)) => {
+            (State::On { source, since }, Some(wanted), None) => {
                 if source != wanted {
                     self.state = State::On {
                         source: wanted,
@@ -221,7 +309,7 @@ impl<A: PlatformAdapter> Controller<A> {
                     self.log(Instant::now(), EventKind::SourceChanged(wanted));
                 }
             }
-            (State::On { .. }, None) => {
+            (State::On { .. }, None, _) => {
                 // OFF wins even if the release fails: the OS drops the
                 // assertion when the process exits, and the UI must not
                 // claim to be ON.
@@ -240,9 +328,10 @@ impl<A: PlatformAdapter> Controller<A> {
     }
 
     pub fn status_at(&self, now: &Zoned) -> Status {
-        let (source, elapsed) = match self.state {
-            State::Off => (None, Duration::ZERO),
-            State::On { source, since } => (Some(source), since.elapsed()),
+        let (source, elapsed, held) = match self.state {
+            State::Off => (None, Duration::ZERO, None),
+            State::On { source, since } => (Some(source), since.elapsed(), None),
+            State::Held { hold, .. } => (None, Duration::ZERO, Some(hold)),
         };
         let capabilities = self.adapter.capabilities();
         let (at, tz) = (now.timestamp(), now.time_zone());
@@ -254,6 +343,7 @@ impl<A: PlatformAdapter> Controller<A> {
             next_change: self.automation.next_change(at, tz),
             paused_until: self.automation.paused_until(at, tz),
             power_only: source.is_some() && self.power_only,
+            held,
         }
     }
 
@@ -275,6 +365,7 @@ impl<A: PlatformAdapter> Controller<A> {
 
     pub fn tick_at(&mut self, now: Instant, wall: &Zoned) -> Duration {
         let before = self.state_key();
+        self.check_slept(now, wall);
         if let Err(error) = self.sync(wall) {
             let kind = EventKind::AutomationFailed(error.0);
             // One line per failure streak, not one per tick.
@@ -285,9 +376,39 @@ impl<A: PlatformAdapter> Controller<A> {
         if self.state_key() != before {
             self.changed = true;
         }
-        let nudge_wait = self.nudge_wait(now);
-        self.watch_wait(wall)
-            .map_or(nudge_wait, |watch_wait| nudge_wait.min(watch_wait))
+        let mut wait = self.nudge_wait(now);
+        if let Some(watch_wait) = self.watch_wait(wall) {
+            wait = wait.min(watch_wait);
+        }
+        if !matches!(self.state, State::Off) {
+            if self.conditions.needs_watching() {
+                wait = wait.min(CONDITION_WAIT);
+            } else if self.conditions.off_after_sleep {
+                // Only the sleep check: the ticker's clock stops while asleep,
+                // so this bounds how long after waking it is noticed.
+                wait = wait.min(WATCH_WAIT);
+            }
+        }
+        wait
+    }
+
+    /// The computer slept while ON or held: the user chose Sleep or closed
+    /// the lid, since the assertion blocks idle sleep. Turn OFF as a manual
+    /// OFF would, instead of carrying on after waking (SPEC §14).
+    fn check_slept(&mut self, now: Instant, wall: &Zoned) {
+        if matches!(self.state, State::Off) || !self.conditions.off_after_sleep {
+            self.asleep_mark = None;
+            return;
+        }
+        let asleep = self.adapter.time_asleep();
+        if let (Some(before), Some(after)) = (self.asleep_mark, asleep)
+            && after.saturating_sub(before) >= SLEPT
+        {
+            self.automation
+                .set_manual(false, wall.timestamp(), wall.time_zone());
+            self.log(now, EventKind::OffAfterSleep);
+        }
+        self.asleep_mark = asleep;
     }
 
     /// Whether a tick changed the state since the last call, so the UI can
@@ -296,10 +417,11 @@ impl<A: PlatformAdapter> Controller<A> {
         std::mem::take(&mut self.changed)
     }
 
-    fn state_key(&self) -> Option<Source> {
+    fn state_key(&self) -> (Option<Source>, Option<Hold>) {
         match self.state {
-            State::Off => None,
-            State::On { source, .. } => Some(source),
+            State::Off => (None, None),
+            State::On { source, .. } => (Some(source), None),
+            State::Held { hold, .. } => (None, Some(hold)),
         }
     }
 
@@ -330,6 +452,15 @@ impl<A: PlatformAdapter> Controller<A> {
             return next_at - now;
         }
 
+        // Nudging a locked screen does nothing for anyone (SPEC §14).
+        if self.adapter.screen_locked() == Some(true) {
+            self.planner.start(now);
+            self.log(now, EventKind::SkippedLocked);
+            return self
+                .planner
+                .next_at()
+                .map_or(IDLE_WAIT, |next| next.saturating_duration_since(now));
+        }
         let idle = self.adapter.idle_time();
         let kind = match self.planner.due(now, idle) {
             Due::SkipUserActive => EventKind::SkippedUserActive,
@@ -400,6 +531,15 @@ mod tests {
         fail_release: bool,
         input_nudge: bool,
         idle: Option<Duration>,
+        env: Rc<RefCell<FakeEnv>>,
+    }
+
+    #[derive(Default)]
+    struct FakeEnv {
+        locked: Option<bool>,
+        power: Option<crate::platform::PowerSource>,
+        processes: Option<Vec<String>>,
+        asleep: Option<Duration>,
     }
 
     impl Default for FakeAdapter {
@@ -410,6 +550,7 @@ mod tests {
                 fail_release: false,
                 input_nudge: true,
                 idle: None,
+                env: Rc::default(),
             }
         }
     }
@@ -446,6 +587,207 @@ mod tests {
                 input_nudge: self.input_nudge,
                 input_unavailable: None,
             }
+        }
+
+        fn screen_locked(&mut self) -> Option<bool> {
+            self.env.borrow().locked
+        }
+
+        fn power_source(&mut self) -> Option<crate::platform::PowerSource> {
+            self.env.borrow().power
+        }
+
+        fn process_names(&mut self) -> Option<Vec<String>> {
+            self.env.borrow().processes.clone()
+        }
+
+        fn time_asleep(&mut self) -> Option<Duration> {
+            self.env.borrow().asleep
+        }
+    }
+
+    mod conditions {
+        use super::*;
+        use crate::conditions::{Conditions, Hold};
+        use crate::platform::PowerSource;
+
+        fn battery(on_ac: bool) -> Option<PowerSource> {
+            Some(PowerSource {
+                on_ac,
+                battery_percent: Some(50),
+            })
+        }
+
+        #[test]
+        fn on_battery_holds_and_resumes_when_plugged_in() {
+            let adapter = FakeAdapter::default();
+            let (calls, env) = (adapter.calls.clone(), adapter.env.clone());
+            env.borrow_mut().power = battery(false);
+            let mut controller = Controller::new(adapter);
+            controller
+                .set_conditions(Conditions {
+                    only_on_ac: true,
+                    ..Conditions::new()
+                })
+                .unwrap();
+
+            controller.turn_on().unwrap();
+            let status = controller.status();
+            assert!(!status.is_on());
+            assert_eq!(status.held, Some(Hold::OnBattery));
+            assert_eq!(calls.borrow().acquire, 0);
+
+            // Held: the ticker comes back soon to look again.
+            let wait = controller.tick(Instant::now());
+            assert!(wait <= Duration::from_secs(5));
+
+            env.borrow_mut().power = battery(true);
+            controller.tick(Instant::now());
+            assert!(controller.status().is_on());
+            assert!(controller.take_change());
+            assert_eq!(calls.borrow().acquire, 1);
+
+            // Unplugged again while ON: released, held.
+            env.borrow_mut().power = battery(false);
+            controller.tick(Instant::now());
+            assert_eq!(controller.status().held, Some(Hold::OnBattery));
+            assert_eq!(calls.borrow().release, 1);
+
+            // OFF while held is plain OFF.
+            controller.turn_off().unwrap();
+            let status = controller.status();
+            assert!(!status.is_on() && status.held.is_none());
+            assert_eq!(calls.borrow().release, 1);
+        }
+
+        #[test]
+        fn app_condition_follows_the_process_list() {
+            let adapter = FakeAdapter::default();
+            let env = adapter.env.clone();
+            env.borrow_mut().processes = Some(vec!["explorer".into()]);
+            let mut controller = Controller::new(adapter);
+            controller
+                .set_conditions(Conditions {
+                    while_running: vec!["Blender.exe".into()],
+                    ..Conditions::new()
+                })
+                .unwrap();
+            controller.turn_on().unwrap();
+            assert_eq!(controller.status().held, Some(Hold::AppNotRunning));
+            env.borrow_mut().processes = Some(vec!["explorer".into(), "blender".into()]);
+            controller.tick(Instant::now());
+            assert!(controller.status().is_on());
+            // Removing the condition while held resumes at once.
+            env.borrow_mut().processes = Some(vec![]);
+            controller.tick(Instant::now());
+            assert!(!controller.status().is_on());
+            controller.set_conditions(Conditions::new()).unwrap();
+            assert!(controller.status().is_on());
+        }
+
+        #[test]
+        fn a_locked_screen_gets_no_nudges_but_stays_awake() {
+            let adapter = FakeAdapter::default();
+            let (calls, env) = (adapter.calls.clone(), adapter.env.clone());
+            env.borrow_mut().locked = Some(true);
+            let mut controller = Controller::new(adapter);
+            controller.turn_on().unwrap();
+            let start = Instant::now();
+            controller.tick(start + Duration::from_secs(73));
+            assert!(calls.borrow().nudges.is_empty());
+            assert!(controller.status().is_on());
+            assert!(
+                controller
+                    .events()
+                    .any(|event| event.kind == EventKind::SkippedLocked)
+            );
+
+            env.borrow_mut().locked = Some(false);
+            controller.tick(start + Duration::from_secs(73 + 73));
+            assert_eq!(calls.borrow().nudges.len(), 1);
+        }
+
+        #[test]
+        fn release_when_locked_lets_it_sleep_until_unlocked() {
+            let adapter = FakeAdapter::default();
+            let (calls, env) = (adapter.calls.clone(), adapter.env.clone());
+            let mut controller = Controller::new(adapter);
+            controller
+                .set_conditions(Conditions {
+                    release_when_locked: true,
+                    ..Conditions::new()
+                })
+                .unwrap();
+            controller.turn_on().unwrap();
+            env.borrow_mut().locked = Some(true);
+            controller.tick(Instant::now());
+            assert_eq!(controller.status().held, Some(Hold::Locked));
+            assert_eq!(calls.borrow().release, 1);
+            env.borrow_mut().locked = Some(false);
+            controller.tick(Instant::now());
+            assert!(controller.status().is_on());
+        }
+
+        #[test]
+        fn sleeping_while_on_turns_it_off() {
+            let adapter = FakeAdapter::default();
+            let env = adapter.env.clone();
+            env.borrow_mut().asleep = Some(Duration::from_secs(100));
+            let mut controller = Controller::new(adapter);
+            controller.turn_on().unwrap();
+            controller.tick(Instant::now());
+            // A short blip isn't sleep.
+            env.borrow_mut().asleep = Some(Duration::from_secs(105));
+            controller.tick(Instant::now());
+            assert!(controller.status().is_on());
+
+            env.borrow_mut().asleep = Some(Duration::from_secs(105 + 3600));
+            controller.tick(Instant::now());
+            assert!(!controller.status().is_on());
+            assert!(controller.take_change());
+            assert!(
+                controller
+                    .events()
+                    .any(|event| event.kind == EventKind::OffAfterSleep)
+            );
+
+            // Unless asked not to.
+            controller
+                .set_conditions(Conditions {
+                    off_after_sleep: false,
+                    ..Conditions::new()
+                })
+                .unwrap();
+            controller.turn_on().unwrap();
+            controller.tick(Instant::now());
+            env.borrow_mut().asleep = Some(Duration::from_secs(105 + 7200));
+            controller.tick(Instant::now());
+            assert!(controller.status().is_on());
+        }
+
+        #[test]
+        fn sleeping_during_a_schedule_window_pauses_it_like_a_manual_off() {
+            use crate::schedule::{Schedule, TimeWindow, Weekdays};
+            let adapter = FakeAdapter::default();
+            let env = adapter.env.clone();
+            env.borrow_mut().asleep = Some(Duration::ZERO);
+            let mut controller = Controller::new(adapter);
+            let now = Zoned::now();
+            let schedule = Schedule {
+                enabled: true,
+                windows: vec![
+                    TimeWindow::new(Weekdays::empty().with(now.weekday()), 0, 24 * 60).unwrap(),
+                ],
+                ..Schedule::default()
+            };
+            controller.set_schedule_at(schedule, &now).unwrap();
+            assert_eq!(controller.status().source, Some(Source::Schedule));
+            controller.tick(Instant::now());
+            env.borrow_mut().asleep = Some(Duration::from_secs(600));
+            controller.tick(Instant::now());
+            let status = controller.status();
+            assert!(!status.is_on());
+            assert!(status.paused_until.is_some());
         }
     }
 
@@ -519,6 +861,13 @@ mod tests {
         let adapter = FakeAdapter::default();
         let calls = adapter.calls.clone();
         let mut controller = Controller::new(adapter);
+        // Only the nudge decides the wait here, not the sleep check.
+        controller
+            .set_conditions(crate::conditions::Conditions {
+                off_after_sleep: false,
+                ..Default::default()
+            })
+            .unwrap();
 
         // OFF: nothing, whenever.
         controller.tick(Instant::now() + Duration::from_secs(3600));

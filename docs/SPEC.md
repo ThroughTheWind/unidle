@@ -160,7 +160,7 @@ Phase 2 of the [roadmap](ROADMAP.md). The toggle is one input among several: the
   - Without an enabled schedule, a manual change holds until the next one, as in v1.
 - **SC-6 Time handling:** the state is computed from the wall clock and the system time zone each time it is checked, at least every 15 seconds while a timer or schedule runs. A DST change never moves a window's local times, and after a sleep or resume the app lands in the right state within 15 seconds without replaying what it missed.
 - **SC-7 Quitting** always turns OFF, whatever a timer or schedule wants. Timers are not kept across a restart; the schedule is.
-- **Conditions (candidate, Phase 4):** only when on AC power; only when a given app is running; stop when the screen is locked.
+- **Conditions (Phase 4):** see §14.
 
 ## 11. Architecture constraints (stack-agnostic)
 
@@ -196,4 +196,22 @@ Phase 4 of the [roadmap](ROADMAP.md). The same `unidle` binary takes commands fr
 - **CL-3 Output.** Text by default, the same lines as the tray; `--json` prints the window's status object. Exit status 0 on success, 1 when the app refuses or can't be reached, 2 for a usage error.
 - **CL-4 Local only.** Commands travel over a Unix socket in a folder private to the user (`$XDG_RUNTIME_DIR`, else a `0700` folder in the temp folder), or a named pipe that refuses remote clients on Windows. No network (NFR-2), and the app ignores anything that isn't one short request.
 - **CL-5 Arguments the app doesn't know as a command** (such as `--hidden` from the login item) start the app as before. An unknown word is a usage error, so a typo never opens a window.
+
+## 14. Phase 4: Conditions
+
+Phase 4 of the [roadmap](ROADMAP.md). Conditions decide whether Unidle should run right now. When the user, a timer or the schedule wants it ON but a condition says no, it is **held**: the power assertion is released and nudges stop, the window and tray say "Paused" and why, and it resumes on its own when the condition clears. Clicking the toggle while held turns it OFF.
+
+| Setting | Default | Effect |
+|---|---|---|
+| Only when plugged in | Off | Held on battery power |
+| Pause on low battery | Never | Held on battery below 10, 20, 30 or 50 % |
+| Only while an app is running | Empty | Held unless one of the named processes runs (case and `.exe` ignored) |
+| Let it sleep while locked | Off | Held while the screen is locked |
+| Turn off after sleep | On | After the computer sleeps while ON or held, it is OFF |
+
+- **CO-1 Never on a guess.** A reading the OS can't give (no battery information, the lock state unknown) never holds anything.
+- **CO-2 No nudges on a locked screen**, whatever the settings: the power assertion stays, so a render keeps running, but nothing is simulated for nobody.
+- **CO-3 Sleep.** While ON the assertion blocks idle sleep, so time asleep means the user chose Sleep or closed the lid (PB-4). On waking, Unidle turns OFF as a manual OFF would: a timer is cancelled and a schedule window pauses until it ends (SC-5). Detected by comparing a clock that counts sleep with one that doesn't (`CLOCK_BOOTTIME`/`CLOCK_MONOTONIC`, `QueryInterruptTime`/`QueryUnbiasedInterruptTime`, `mach_continuous_time`/`mach_absolute_time`), within 15 s of waking.
+- **CO-4 Polling.** Conditions are read every 5 s while ON or held, only those that are set, and never while OFF. Lock: logind `LockedHint` or `org.freedesktop.ScreenSaver.GetActive` on Linux, the input desktop on Windows, `CGSSessionScreenIsLocked` on macOS. Power: `/sys/class/power_supply`, `GetSystemPowerStatus`, IOKit power sources. Apps: `/proc`, a ToolHelp snapshot, `proc_listallpids`. Only process names are read, never their contents or windows (NFR-2).
+- **CO-5 Precedence.** Conditions come after SC-5: they never turn anything ON, only hold what the user, a timer or the schedule turned ON.
 

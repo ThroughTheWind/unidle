@@ -137,12 +137,8 @@ pub fn refresh(app: &AppHandle, status: &Status) {
         }));
     }
     if let Some(menu) = app.try_state::<TrayMenu>() {
-        let _ = menu.status.set_text(if on {
-            strings::status_on(status.elapsed)
-        } else {
-            strings::STATUS_OFF.to_string()
-        });
-        let _ = menu.toggle.set_text(if on {
+        let _ = menu.status.set_text(strings::status_line(status));
+        let _ = menu.toggle.set_text(if status.is_wanted() {
             strings::TURN_OFF
         } else {
             strings::TURN_ON
