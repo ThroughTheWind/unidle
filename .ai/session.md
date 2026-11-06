@@ -21,7 +21,7 @@ Run the open real-machine criteria of WI-009 to WI-012 on Windows, macOS and Lin
 ## Up next
 
 1. WI-003, footprint measurement, now with `jiff` and the dialog plugin in the build.
-2. Phase 3. Open question: whether printable typing ships in the core or as a plugin (ROADMAP open question 1).
+2. Phase 4 (Phase 3, keyboard and typing simulation, was dropped). It starts with the CLI, WI-014, then the Must row: stop when the screen locks or the user picks Sleep.
 
 ## Active constraints — do not reopen
 
